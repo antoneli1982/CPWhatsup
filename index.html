@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>CPWhat's up — Transcrever reunião</title>
+<meta name="description" content="Grave reuniões, veja o texto aparecer em tempo real e receba um resumo automático. Grátis, direto no navegador."/>
+<meta name="theme-color" content="#0E1A2E"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%234A9AE8'/%3E%3Crect x='42' y='25' width='16' height='34' rx='8' fill='white'/%3E%3Cpath d='M32 50a18 18 0 0 0 36 0M50 68v10' stroke='white' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0A1220;
+  --surface:#111C30;
+  --surfaceHi:#17253E;
+  --border:rgba(74,154,232,.15);
+  --borderHi:rgba(74,154,232,.3);
+  --text:#E8EFF8;
+  --textMid:#9FB2CC;
+  --textDim:#5B7495;
+  --blue:#4A9AE8;
+  --blueBr:#6BB5FF;
+  --red:#FF4D6A;
+  --green:#2EBF8B;
+  --gold:#E8BF3F;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  min-height:100vh;background:var(--bg);color:var(--text);
+  font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  font-weight:400;line-height:1.5;overflow-x:hidden;
+  box-sizing:border-box;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button:disabled{cursor:not-allowed;opacity:.5}
+input{font-family:inherit}
+::selection{background:rgba(74,154,232,.35);color:white}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(74,154,232,.2);border-radius:8px}
+
+.bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-glow::before{
+  content:"";position:absolute;top:-20%;left:50%;transform:translateX(-50%);
+  width:900px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(74,154,232,.12),transparent 70%);
+  filter:blur(40px);
+}
+
+/* Layout principal */
+.app{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:24px 20px 80px;min-height:100vh}
+
+/* Em telas largas (>=880px), sidebar aparece fixa e integrada */
+@media(min-width:880px){
+  body{padding-right:320px}
+  .app{max-width:760px;margin:0 auto;padding-right:20px}
+  /* O drawer vira uma sidebar fixa sempre aberta, bem integrada ao fundo */
+  #cfgDrawer{
+    transform:translateX(0) !important;
+    width:320px !important;max-width:320px !important;
+    background:linear-gradient(180deg,#0F1B30,#0B1424) !important;
+    border-left:1px solid rgba(74,154,232,.12) !important;
+    box-shadow:none !important;
+    padding:28px 24px !important;
+  }
+  /* Esconde o overlay escuro e o botão de fechar (não faz sentido numa sidebar fixa) */
+  #cfgBg{display:none !important}
+  #cfgDrawer .cfg-close-btn{display:none !important}
+  /* O título "Configurações" fica mais sutil — é label de seção, não de modal */
+  #cfgDrawer .cfg-head{
+    margin-bottom:24px !important;padding-bottom:16px;
+    border-bottom:1px solid var(--border);
+  }
+  #cfgDrawer .cfg-title{
+    font-size:11px !important;font-weight:600 !important;
+    color:var(--textMid);text-transform:uppercase;letter-spacing:.12em;
+  }
+  /* Esconde o botão de engrenagem no cabeçalho (sidebar já visível) */
+  .cfg-btn-header{display:none !important}
+}
+
+/* Em telas muito largas (>=1280px), o app fica centralizado no espaço sobrando */
+@media(min-width:1280px){
+  .app{max-width:820px}
+}
+
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{
+  width:40px;height:40px;border-radius:11px;
+  background:linear-gradient(135deg,#4A9AE8,#2D6DB5);
+  display:inline-flex;align-items:center;justify-content:center;color:white;
+  box-shadow:0 4px 14px rgba(74,154,232,.4);
+}
+.logo-name{font-size:17px;font-weight:600;letter-spacing:-.01em;line-height:1.1}
+.logo-sub{font-size:11px;color:var(--textMid);font-weight:500;margin-top:2px}
+.icon-btn{
+  width:40px;height:40px;border-radius:11px;
+  background:var(--surface);border:1px solid var(--border);color:var(--textMid);
+  display:inline-flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.icon-btn:hover{background:var(--surfaceHi);color:var(--text);border-color:var(--borderHi)}
+
+.name-field{margin-bottom:28px}
+.name-label{display:block;font-size:13px;font-weight:500;color:var(--textMid);margin-bottom:10px}
+.name-input{
+  width:100%;padding:14px 18px;font-size:16px;font-weight:400;
+  background:var(--surface);border:1.5px solid var(--border);border-radius:12px;color:var(--text);
+  outline:none;transition:all .15s;
+}
+.name-input:focus{border-color:var(--blue);background:var(--surfaceHi)}
+.name-input::placeholder{color:var(--textDim)}
+
+/* Area do botão principal */
+.rec-wrap{display:flex;flex-direction:column;align-items:center;gap:20px;padding:40px 20px;margin-bottom:32px}
+
+/* Botão grande inicial (só aparece antes de gravar) */
+.rec-btn{
+  width:140px;height:140px;border-radius:50%;
+  background:linear-gradient(145deg,#FF4D6A,#D13048);
+  color:white;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  font-weight:600;font-size:15px;letter-spacing:.01em;
+  box-shadow:0 14px 40px rgba(255,77,106,.35),0 0 0 4px rgba(255,77,106,.12);
+  transition:all .15s;
+  position:relative;
+}
+.rec-btn:hover{transform:scale(1.03);box-shadow:0 18px 50px rgba(255,77,106,.45),0 0 0 6px rgba(255,77,106,.15)}
+.rec-btn:active{transform:scale(.97)}
+.rec-btn svg{width:44px;height:44px}
+.rec-btn.recording{
+  background:linear-gradient(145deg,#17253E,#111C30);
+  border:2px solid rgba(255,77,106,.4);
+  box-shadow:0 0 0 0 rgba(255,77,106,.5);
+  animation:recPulse 1.8s ease-in-out infinite;
+}
+@keyframes recPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,77,106,.4)}
+  50%{box-shadow:0 0 0 14px rgba(255,77,106,0)}
+}
+.rec-btn.recording svg{color:var(--red)}
+.rec-btn.paused{
+  background:linear-gradient(145deg,#2EBF8B,#1E9369);
+  border:none;animation:none;
+  box-shadow:0 14px 40px rgba(46,191,139,.35),0 0 0 4px rgba(46,191,139,.12);
+}
+.rec-btn.paused svg{color:white}
+
+/* Dois botões de ação durante gravação: Pausar | Finalizar */
+.rec-dual{
+  display:flex;gap:12px;justify-content:center;width:100%;max-width:380px;
+}
+.rec-action{
+  flex:1;padding:18px 16px;border-radius:14px;font-size:15px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  transition:all .15s;
+}
+.rec-action svg{width:20px;height:20px;flex-shrink:0}
+.rec-action.pause{
+  background:rgba(232,191,63,.12);border:1.5px solid rgba(232,191,63,.3);color:var(--gold);
+}
+.rec-action.pause:hover{background:rgba(232,191,63,.2);border-color:var(--gold)}
+.rec-action.resume{
+  background:rgba(46,191,139,.12);border:1.5px solid rgba(46,191,139,.3);color:var(--green);
+}
+.rec-action.resume:hover{background:rgba(46,191,139,.2);border-color:var(--green)}
+.rec-action.finish{
+  background:linear-gradient(135deg,#FF4D6A,#D13048);color:white;border:none;
+  box-shadow:0 6px 18px rgba(255,77,106,.28);
+}
+.rec-action.finish:hover{box-shadow:0 8px 24px rgba(255,77,106,.4)}
+
+/* Botão compacto "Gerenciar" (ao lado de Finalizar) + menu popover */
+.rec-manage-wrap{position:relative;flex-shrink:0}
+.rec-action.manage{
+  flex:0 0 auto;width:58px;padding:18px 0;
+  background:var(--surface);border:1.5px solid var(--border);color:var(--textMid);
+}
+.rec-action.manage:hover{background:var(--surfaceHi);border-color:var(--borderHi);color:var(--text)}
+.rec-action.manage svg{width:22px;height:22px;margin:0}
+.rec-action.manage.open{background:var(--surfaceHi);border-color:var(--blue);color:var(--blueBr)}
+
+.manage-menu{
+  position:absolute;bottom:calc(100% + 10px);right:0;z-index:50;
+  min-width:230px;
+  background:var(--surfaceHi);border:1px solid var(--borderHi);border-radius:12px;
+  box-shadow:0 16px 40px rgba(0,0,0,.5);
+  padding:6px;
+  opacity:0;transform:translateY(6px);pointer-events:none;
+  transition:opacity .15s ease,transform .15s ease;
+}
+.manage-menu.open{opacity:1;transform:translateY(0);pointer-events:auto}
+.manage-menu::after{
+  content:"";position:absolute;bottom:-6px;right:20px;
+  width:12px;height:12px;background:var(--surfaceHi);
+  border-right:1px solid var(--borderHi);border-bottom:1px solid var(--borderHi);
+  transform:rotate(45deg);
+}
+.manage-item{
+  display:flex;align-items:center;gap:11px;width:100%;
+  padding:11px 12px;border-radius:8px;
+  font-size:14px;font-weight:500;color:var(--text);text-align:left;
+  transition:background .12s;
+}
+.manage-item:hover{background:rgba(74,154,232,.12)}
+.manage-item:disabled{opacity:.45;cursor:not-allowed}
+.manage-item:disabled:hover{background:transparent}
+.manage-item svg{width:17px;height:17px;color:var(--textMid);flex-shrink:0}
+.manage-item:hover svg{color:var(--blueBr)}
+.manage-item.divider-top{border-top:1px solid var(--border);margin-top:4px;padding-top:12px}
+.manage-hint{
+  padding:8px 12px 6px;font-size:11px;color:var(--textDim);
+  text-transform:uppercase;letter-spacing:.08em;font-weight:600;
+}
+
+.manage-overlay{
+  position:fixed;inset:0;z-index:40;background:transparent;
+  display:none;
+}
+.manage-overlay.open{display:block}
+
+/* Timer gigante durante gravação */
+.rec-timer-big{
+  display:inline-flex;align-items:center;gap:14px;
+  font-size:44px;font-weight:600;color:var(--red);
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1;
+}
+.rec-timer-big.paused{color:var(--textMid)}
+.rec-timer-big.paused svg{color:var(--gold)}
+.rec-dot-live{
+  width:14px;height:14px;border-radius:50%;background:var(--red);
+  animation:dotPulse 1.4s ease-in-out infinite;
+}
+@keyframes dotPulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.35;transform:scale(.75)}
+}
+.rec-status{
+  font-size:14px;color:var(--textMid);text-align:center;max-width:380px;line-height:1.5;
+}
+.rec-status strong{color:var(--text);font-weight:500}
+.rec-status{font-size:15px;color:var(--textMid);text-align:center;max-width:380px;line-height:1.5}
+.rec-status strong{color:var(--text);font-weight:500}
+.rec-timer{font-size:28px;font-weight:600;color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+.transcript{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:18px 20px;margin-bottom:20px;min-height:120px;
+}
+.transcript.empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  padding:40px 20px;text-align:center;
+}
+.transcript.empty .emoji{font-size:32px;opacity:.6}
+.transcript.empty p{font-size:14px;color:var(--textMid);max-width:320px;line-height:1.55}
+.tr-entry{padding:10px 0;border-bottom:1px solid rgba(74,154,232,.08);font-size:15px;line-height:1.65}
+.tr-entry:last-child{border-bottom:none}
+.tr-entry.interim{color:var(--textMid);font-style:italic}
+.tr-time{font-size:11px;color:var(--textDim);font-weight:500;margin-right:10px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.tr-speaker{font-size:12.5px;font-weight:600;margin-right:10px;cursor:pointer;transition:opacity .15s}
+.tr-speaker:hover{opacity:.7;text-decoration:underline;text-underline-offset:3px}
+
+.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:28px}
+.action-btn{
+  padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font-size:14px;font-weight:500;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;
+}
+.action-btn:hover{background:var(--surfaceHi);border-color:var(--borderHi)}
+.action-btn.primary{
+  background:linear-gradient(135deg,#4A9AE8,#2D6DB5);color:white;border-color:transparent;
+  box-shadow:0 4px 14px rgba(74,154,232,.25);
+}
+.action-btn.primary:hover{box-shadow:0 6px 20px rgba(74,154,232,.4)}
+.action-btn svg{width:17px;height:17px;flex-shrink:0}
+
+.more-exports{margin-top:-12px;margin-bottom:28px}
+.more-toggle{
+  width:100%;padding:11px 14px;background:transparent;border:1px dashed var(--border);border-radius:10px;
+  color:var(--textMid);font-size:13px;font-weight:500;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;
+}
+.more-toggle:hover{border-color:var(--borderHi);color:var(--text)}
+.more-toggle.open svg{transform:rotate(180deg)}
+.more-toggle svg{transition:transform .2s}
+.more-body{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;
+  margin-top:10px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;
+}
+.more-body .action-btn{background:transparent;border-color:transparent}
+.more-body .action-btn:hover{background:var(--surfaceHi);border-color:var(--border)}
+
+.section-title{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:12px;font-weight:600;color:var(--textMid);text-transform:uppercase;letter-spacing:.08em;
+  margin:36px 0 14px;
+}
+.session{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:8px;
+  transition:all .15s;
+}
+.session:hover{background:var(--surfaceHi);border-color:var(--borderHi)}
+.session-main{flex:1;min-width:0;cursor:pointer}
+.session-name{font-size:14.5px;font-weight:500;color:var(--text);margin-bottom:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.session-meta{font-size:12px;color:var(--textDim);font-variant-numeric:tabular-nums}
+.session-del{
+  width:32px;height:32px;border-radius:8px;color:var(--textDim);
+  display:inline-flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;
+}
+.session-del:hover{background:rgba(255,77,106,.1);color:var(--red)}
+.empty-state{
+  text-align:center;padding:28px 20px;color:var(--textMid);font-size:13.5px;line-height:1.55;
+}
+
+.modal-bg{
+  position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);
+  display:flex;align-items:flex-start;justify-content:center;padding:28px 16px;
+  overflow-y:auto;animation:fadeIn .15s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  width:100%;max-width:600px;margin:auto;animation:slideUp .2s ease;
+  box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal-head{
+  padding:18px 22px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.modal-title{font-size:16px;font-weight:600;color:var(--text)}
+.modal-sub{font-size:12px;color:var(--textMid);margin-top:2px}
+.modal-close{
+  width:34px;height:34px;border-radius:9px;color:var(--textMid);
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.modal-close:hover{background:var(--surfaceHi);color:var(--text)}
+.modal-body{padding:22px}
+.modal-foot{
+  padding:14px 22px;border-top:1px solid var(--border);
+  display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;
+}
+
+.sum-sect{margin-bottom:22px}
+.sum-sect:last-child{margin-bottom:0}
+.sum-eyebrow{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:600;color:var(--textMid);text-transform:uppercase;letter-spacing:.08em;
+  margin-bottom:10px;
+}
+.sum-eyebrow svg{width:14px;height:14px;color:var(--blueBr)}
+.sum-eyebrow.gold svg{color:var(--gold)}
+.sum-exec{
+  background:rgba(74,154,232,.06);border:1px solid rgba(74,154,232,.18);border-radius:11px;
+  padding:14px 16px;font-size:14.5px;line-height:1.65;color:var(--text);
+}
+.sum-list{list-style:none}
+.sum-list li{
+  padding:9px 0 9px 22px;font-size:14px;line-height:1.55;color:var(--text);
+  position:relative;border-bottom:1px solid rgba(74,154,232,.08);
+}
+.sum-list li:last-child{border-bottom:none}
+.sum-list li::before{
+  content:"";position:absolute;left:0;top:16px;width:7px;height:7px;border-radius:50%;
+  background:var(--blueBr);
+}
+.sum-list.gold li::before{background:var(--gold)}
+.sum-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.sum-chip{
+  font-size:11.5px;padding:3px 10px;border-radius:999px;font-weight:500;
+}
+.sum-chip.when{background:rgba(232,191,63,.1);border:1px solid rgba(232,191,63,.22);color:var(--gold)}
+
+/* Abas dentro do modal (Resumo / Transcrição) */
+.mtabs{
+  display:flex;gap:4px;padding:4px;background:var(--surfaceHi);
+  border:1px solid var(--border);border-radius:10px;margin-bottom:20px;
+}
+.mtab{
+  flex:1;padding:9px 12px;border-radius:7px;
+  font-size:13px;font-weight:500;color:var(--textMid);
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  transition:all .15s;
+}
+.mtab svg{width:14px;height:14px}
+.mtab:hover{color:var(--text)}
+.mtab.active{
+  background:var(--blue);color:white;
+  box-shadow:0 2px 6px rgba(74,154,232,.25);
+}
+.mtab-panel{display:none}
+.mtab-panel.active{display:block;animation:fadeIn .2s ease}
+
+/* Transcrição dentro do modal */
+.tr-scroll{max-height:440px;overflow-y:auto;padding-right:8px;margin-right:-8px}
+.mtr-entry{
+  padding:10px 0;border-bottom:1px solid rgba(74,154,232,.08);
+  font-size:14px;line-height:1.6;color:var(--text);
+}
+.mtr-entry:last-child{border-bottom:none}
+.mtr-time{
+  font-size:11px;color:var(--textDim);font-weight:500;
+  margin-right:10px;font-variant-numeric:tabular-nums;
+}
+.mtr-speaker{font-size:12.5px;font-weight:600;margin-right:10px;color:var(--blueBr)}
+.mtr-empty{
+  padding:40px 20px;text-align:center;color:var(--textMid);font-size:13.5px;
+}
+
+.loading{padding:40px 22px;text-align:center}
+.spin{
+  width:36px;height:36px;border-radius:50%;margin:0 auto 16px;
+  border:3px solid var(--border);border-top-color:var(--blue);animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.cfg-drawer{
+  position:fixed;top:0;right:0;bottom:0;width:100%;max-width:420px;z-index:90;
+  background:var(--surface);border-left:1px solid var(--border);
+  padding:24px 26px;overflow-y:auto;overflow-x:hidden;
+  transform:translateX(100%);transition:transform .25s ease;
+  box-shadow:-20px 0 50px rgba(0,0,0,.4);
+}
+.cfg-drawer.open{transform:translateX(0)}
+.cfg-bg{
+  position:fixed;inset:0;z-index:89;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .25s ease;
+}
+.cfg-bg.open{opacity:1;pointer-events:auto}
+.cfg-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.cfg-title{font-size:17px;font-weight:600}
+.cfg-field{margin-bottom:22px}
+.cfg-field label{display:block;font-size:13px;font-weight:500;margin-bottom:8px}
+.cfg-field .desc{font-size:12px;color:var(--textMid);line-height:1.55;margin-bottom:10px}
+.cfg-field select{
+  width:100%;padding:12px 14px;font-size:14px;
+  background:var(--surfaceHi);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);outline:none;appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239FB2CC' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;
+}
+
+/* Cfg sections */
+.cfg-section{margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid var(--border)}
+.cfg-section:last-of-type{border-bottom:none}
+.cfg-section-title{
+  font-size:13px;font-weight:500;margin-bottom:6px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.cfg-section-desc{font-size:12px;color:var(--textMid);line-height:1.55;margin-bottom:12px}
+.cfg-tag{
+  font-size:9px;padding:2px 7px;border-radius:999px;font-weight:600;letter-spacing:.05em;
+  background:rgba(232,191,63,.12);color:var(--gold);border:1px solid rgba(232,191,63,.25);
+}
+
+/* Toggle presencial/online */
+.cfg-toggle-group{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cfg-toggle{
+  padding:14px 12px;background:var(--surfaceHi);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--textMid);text-align:left;transition:all .15s;
+  display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:88px;
+}
+.cfg-toggle svg{width:20px;height:20px;flex-shrink:0}
+.cfg-toggle:hover{border-color:var(--borderHi);color:var(--text)}
+.cfg-toggle.active{
+  background:rgba(74,154,232,.1);border-color:var(--blue);color:var(--blueBr);
+}
+.cfg-toggle-title{font-size:13.5px;font-weight:600;line-height:1.2}
+.cfg-toggle-sub{font-size:11.5px;color:var(--textDim);margin-top:2px;line-height:1.35}
+.cfg-toggle.active .cfg-toggle-sub{color:var(--textMid)}
+
+/* Hint box */
+.cfg-hint{
+  margin-top:10px;padding:10px 12px;border-radius:9px;
+  background:rgba(232,191,63,.08);border:1px solid rgba(232,191,63,.2);
+  color:#F0D08A;font-size:12px;line-height:1.55;
+  display:flex;gap:8px;align-items:flex-start;
+}
+.cfg-hint svg{width:14px;height:14px;flex-shrink:0;margin-top:2px;color:var(--gold)}
+.cfg-hint strong{color:var(--gold);font-weight:500}
+
+/* Check row */
+.cfg-check-row{
+  display:flex;gap:10px;align-items:flex-start;cursor:pointer;
+  padding:10px 0;
+}
+.cfg-check-row input[type="checkbox"]{
+  appearance:none;-webkit-appearance:none;
+  width:18px;height:18px;border:1.5px solid var(--borderHi);border-radius:5px;
+  background:var(--surfaceHi);cursor:pointer;flex-shrink:0;margin-top:1px;position:relative;
+  transition:all .15s;
+}
+.cfg-check-row input[type="checkbox"]:checked{
+  background:var(--blue);border-color:var(--blue);
+}
+.cfg-check-row input[type="checkbox"]:checked::after{
+  content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;
+  border:solid white;border-width:0 2px 2px 0;transform:rotate(45deg);
+}
+.cfg-check-title{font-size:13.5px;font-weight:500;color:var(--text);line-height:1.3}
+.cfg-check-sub{font-size:11.5px;color:var(--textMid);margin-top:3px;line-height:1.5}
+
+/* Deepgram key input */
+.cfg-key-row{display:flex;gap:6px;margin-top:10px}
+.cfg-key-input{
+  flex:1;padding:10px 12px;font-size:12px;font-family:ui-monospace,'SF Mono',Menlo,monospace;
+  background:var(--surfaceHi);border:1px solid var(--border);border-radius:9px;color:var(--text);
+  outline:none;
+}
+.cfg-key-input:focus{border-color:var(--blue)}
+.cfg-key-eye{
+  width:38px;height:38px;border-radius:9px;background:var(--surfaceHi);border:1px solid var(--border);
+  color:var(--textMid);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.cfg-key-eye svg{width:15px;height:15px}
+.cfg-key-eye:hover{color:var(--text);border-color:var(--borderHi)}
+
+.error-msg{
+  background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.28);
+  color:#FF8FA0;font-size:13.5px;padding:12px 16px;border-radius:11px;margin-bottom:16px;
+  display:flex;gap:10px;align-items:flex-start;line-height:1.5;
+}
+.error-msg svg{flex-shrink:0;margin-top:2px;color:var(--red)}
+
+@media(max-width:520px){
+  .app{padding:18px 16px 60px}
+  header{margin-bottom:28px}
+  .rec-wrap{padding:24px 16px;margin-bottom:24px}
+  .rec-btn{width:120px;height:120px}
+  .rec-btn svg{width:38px;height:38px}
+  .modal{max-height:92vh;overflow-y:auto}
+  .modal-foot{flex-direction:column-reverse}
+  .modal-foot .action-btn{width:100%}
+}
+
+.hidden{display:none!important}
+
+/* Painel "Gravação finalizada" — aparece após clicar em Finalizar */
+.finish-panel{
+  background:linear-gradient(135deg,rgba(46,191,139,.08),rgba(74,154,232,.08));
+  border:1px solid rgba(46,191,139,.25);
+  border-radius:16px;padding:22px 20px;margin-bottom:24px;
+  animation:finishIn .35s ease;
+}
+@keyframes finishIn{
+  from{opacity:0;transform:translateY(-8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.finish-head{
+  display:flex;align-items:center;gap:10px;margin-bottom:4px;
+  font-size:15px;font-weight:600;color:var(--green);
+}
+.finish-head svg{width:20px;height:20px;flex-shrink:0}
+.finish-sub{
+  font-size:13px;color:var(--textMid);margin-bottom:18px;
+}
+.finish-opts{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+}
+.finish-opt{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  padding:18px 10px;border-radius:13px;
+  background:var(--surface);border:1.5px solid var(--border);color:var(--text);
+  font-size:13.5px;font-weight:600;text-align:center;
+  transition:all .15s;min-height:96px;
+}
+.finish-opt:hover{
+  background:var(--surfaceHi);border-color:var(--blue);
+  transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(74,154,232,.18);
+}
+.finish-opt svg{width:28px;height:28px;color:var(--blueBr)}
+.finish-opt.featured{
+  background:linear-gradient(135deg,#4A9AE8,#2D6DB5);
+  border-color:transparent;color:white;
+  box-shadow:0 4px 14px rgba(74,154,232,.3);
+}
+.finish-opt.featured svg{color:white}
+.finish-opt.featured:hover{
+  box-shadow:0 8px 22px rgba(74,154,232,.45);
+}
+@media(max-width:520px){
+  .finish-opts{grid-template-columns:1fr;gap:8px}
+  .finish-opt{flex-direction:row;justify-content:flex-start;padding:14px 16px;min-height:auto;gap:14px}
+  .finish-opt svg{width:22px;height:22px}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="app">
+
+<header>
+  <div class="logo">
+    <span class="logo-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>
+    </span>
+    <div>
+      <div class="logo-name">CPWhat's up</div>
+      <div class="logo-sub">Grave e transcreva</div>
+    </div>
+  </div>
+  <button class="icon-btn cfg-btn-header" onclick="openCfg()" aria-label="Configurações" title="Configurações">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+<div class="name-field">
+  <label class="name-label" for="sessionName">Nome da gravação</label>
+  <input type="text" id="sessionName" class="name-input" placeholder="Ex: Reunião com cliente" maxlength="80"/>
+</div>
+
+<div id="errorBar" class="error-msg hidden"></div>
+
+<div class="rec-wrap" id="recWrap">
+  <!-- Conteúdo injetado por updateRecUI() -->
+</div>
+
+<div id="transcript" class="transcript empty">
+  <div class="emoji">💬</div>
+  <p>O que você falar aparece aqui.</p>
+</div>
+
+<!-- Painel principal que aparece logo após Finalizar: 3 opções em destaque -->
+<div id="finishPanel" class="finish-panel hidden">
+  <div class="finish-head">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Gravação finalizada
+  </div>
+  <div class="finish-sub">O que você quer fazer agora?</div>
+  <div class="finish-opts">
+    <button class="finish-opt" onclick="downloadTXT()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
+      Baixar TXT
+    </button>
+    <button class="finish-opt" onclick="downloadPDF()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Baixar PDF
+    </button>
+    <button class="finish-opt featured" onclick="showSummary()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5 L13.5 9.2 L20 10.5 L13.5 11.8 L12 18.5 L10.5 11.8 L4 10.5 L10.5 9.2 Z"/></svg>
+      Resumo + Transcrição
+    </button>
+  </div>
+</div>
+
+<div id="actions" class="actions hidden">
+  <button class="action-btn" onclick="shareText()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    Compartilhar
+  </button>
+  <button class="action-btn" onclick="newSession()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Nova gravação
+  </button>
+</div>
+
+<!-- Mais opções (export formatos avançados) -->
+<div id="moreExports" class="more-exports hidden">
+  <button class="more-toggle" onclick="toggleMore()">
+    <svg id="moreChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+    <span>Outros formatos</span>
+  </button>
+  <div id="moreExportsBody" class="more-body hidden">
+    <button class="action-btn" onclick="downloadTXT()" title="Arquivo de texto simples">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
+      TXT
+    </button>
+    <button class="action-btn" onclick="downloadJSON()" title="Dados estruturados para desenvolvedores">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      JSON
+    </button>
+    <button class="action-btn" onclick="downloadSRT()" title="Legendas para vídeo (formato SubRip)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/></svg>
+      Legendas SRT
+    </button>
+    <button class="action-btn" onclick="downloadAudio()" id="audioDlBtn" title="Baixar o arquivo de som">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Áudio
+    </button>
+  </div>
+</div>
+
+<div class="section-title">
+  <span>Histórico</span>
+  <span id="histCount" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:12px;color:var(--textDim)"></span>
+</div>
+<div id="history"></div>
+
+</div>
+
+<div id="modal" class="modal-bg hidden" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalTitle">Resumo</div>
+        <div class="modal-sub" id="modalSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Fechar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot" style="display:none">
+      <button class="action-btn" onclick="copyText()" id="copyBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        Copiar
+      </button>
+      <button class="action-btn primary" onclick="downloadPDF()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Baixar PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="cfgBg" class="cfg-bg" onclick="closeCfg()"></div>
+<div id="cfgDrawer" class="cfg-drawer">
+  <div class="cfg-head">
+    <div class="cfg-title">Configurações</div>
+    <button class="icon-btn cfg-close-btn" onclick="closeCfg()" aria-label="Fechar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+
+  <!-- Idioma -->
+  <div class="cfg-field">
+    <label for="langSel">Idioma</label>
+    <div class="desc">O idioma em que as pessoas vão falar.</div>
+    <select id="langSel" onchange="saveConfig()">
+      <option value="pt-BR">Português (Brasil)</option>
+      <option value="en-US">English (US)</option>
+      <option value="es-ES">Español</option>
+    </select>
+  </div>
+
+  <!-- Tipo de reunião -->
+  <div class="cfg-section">
+    <div class="cfg-section-title">Tipo de reunião</div>
+    <div class="cfg-section-desc">Escolha se a reunião é presencial ou online.</div>
+    <div class="cfg-toggle-group">
+      <button class="cfg-toggle active" id="srcMic" onclick="setAudioSource('mic')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>
+        <div>
+          <div class="cfg-toggle-title">Presencial</div>
+          <div class="cfg-toggle-sub">Celular na mesa</div>
+        </div>
+      </button>
+      <button class="cfg-toggle" id="srcRoom" onclick="setAudioSource('room')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <div>
+          <div class="cfg-toggle-title">Online</div>
+          <div class="cfg-toggle-sub">Meet, Zoom, Teams</div>
+        </div>
+      </button>
+    </div>
+    <div id="roomHint" class="cfg-hint hidden">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>Ao clicar em <strong>Gravar</strong>, o navegador vai pedir pra você escolher uma aba. Selecione a aba da reunião e <strong>marque "Compartilhar áudio"</strong>.</div>
+    </div>
+  </div>
+
+  <!-- Salvar áudio -->
+  <div class="cfg-field">
+    <label class="cfg-check-row">
+      <input type="checkbox" id="saveAudioChk" onchange="saveConfig()"/>
+      <div>
+        <div class="cfg-check-title">Salvar o áudio</div>
+        <div class="cfg-check-sub">Baixar também o arquivo de som (.webm) junto com a transcrição.</div>
+      </div>
+    </label>
+  </div>
+
+  <!-- Identificar vozes (Deepgram) -->
+  <div class="cfg-section">
+    <div class="cfg-section-title">Identificar vozes automaticamente <span class="cfg-tag">Avançado</span></div>
+    <div class="cfg-section-desc">
+      Separa o texto por falante quando várias pessoas falam. Precisa de uma chave gratuita da Deepgram.
+      <a href="https://console.deepgram.com/signup" target="_blank" rel="noopener" style="color:var(--blueBr);text-decoration:none">Pegar chave grátis →</a>
+    </div>
+    <label class="cfg-check-row">
+      <input type="checkbox" id="diarChk" onchange="saveConfig()"/>
+      <div>
+        <div class="cfg-check-title">Ativar identificação de vozes</div>
+        <div class="cfg-check-sub">A chave fica salva só neste dispositivo.</div>
+      </div>
+    </label>
+    <div class="cfg-key-row" id="diarKeyRow">
+      <input type="password" id="dgKey" class="cfg-key-input" placeholder="Cole sua chave Deepgram aqui" oninput="saveConfig()" autocomplete="off"/>
+      <button class="cfg-key-eye" onclick="toggleKeyVis()" aria-label="Mostrar chave" title="Mostrar ou ocultar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div style="font-size:11.5px;color:var(--textDim);line-height:1.6;margin-top:40px;padding-top:20px;border-top:1px solid var(--border)">
+    CPWhat's up funciona direto no seu navegador. As gravações ficam salvas só neste dispositivo. A identificação de vozes usa a Deepgram (opcional) e envia o áudio diretamente para lá — não passa por servidores nossos.
+  </div>
+</div>
+
+<script>
+// ESTADO
+const $ = id => document.getElementById(id);
+let state = {
+  rec: false, paused: false, entries: [], interim: "",
+  elapsed: 0, timer: null, startTime: null, pausedElapsed: 0, recognition: null,
+  saved: [], lastSessionData: null, lastSummary: null,
+  // Novos:
+  audioSource: "mic",     // "mic" | "room"
+  saveAudio: false,       // salvar .webm junto
+  diarOn: false,          // diarização Deepgram
+  dgKey: "",
+  // Runtime de captura:
+  _mediaRecorder: null,
+  _audioChunks: [],
+  _audioBlob: null,
+  _audioStream: null,
+  _micStreamCached: null,  // mic persistido entre gravações (permissão única)
+  _displayStream: null,    // stream da aba no modo "online" (reiniciado a cada gravação)
+  _audioCtx: null,
+  _dg: null,              // WebSocket Deepgram
+  _dgKeepalive: null,
+  _dgSpeakerMap: {},      // índice → nome ("Falante 1" etc.)
+};
+
+// UTILS
+const fmtTime = s => {
+  const m = Math.floor(s/60), se = Math.floor(s%60);
+  return `${String(m).padStart(2,"0")}:${String(se).padStart(2,"0")}`;
+};
+const fmtDate = d => new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+const fmtDateLong = d => new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
+const nowClock = () => new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+const wordCount = entries => entries.reduce((a,e) => a+(e.text||"").split(/\s+/).filter(Boolean).length, 0);
+const escHtml = s => String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// PERSISTÊNCIA
+function loadSaved() {
+  try { const raw = localStorage.getItem("cpw_sessions"); if (raw) state.saved = JSON.parse(raw); }
+  catch { state.saved = []; }
+}
+function persist() {
+  try { localStorage.setItem("cpw_sessions", JSON.stringify(state.saved)); } catch {}
+}
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem("cpw_config");
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c.lang) $("langSel").value = c.lang;
+      state.audioSource = c.audioSource || "mic";
+      state.saveAudio = !!c.saveAudio;
+      state.diarOn = !!c.diarOn;
+      state.dgKey = c.dgKey || "";
+      // UI
+      $("saveAudioChk").checked = state.saveAudio;
+      $("diarChk").checked = state.diarOn;
+      $("dgKey").value = state.dgKey;
+      applyAudioSourceUI();
+    }
+  } catch {}
+}
+function saveConfig() {
+  state.audioSource = state.audioSource || "mic";
+  state.saveAudio = $("saveAudioChk").checked;
+  state.diarOn = $("diarChk").checked;
+  state.dgKey = $("dgKey").value.trim();
+  try {
+    localStorage.setItem("cpw_config", JSON.stringify({
+      lang: $("langSel").value,
+      audioSource: state.audioSource,
+      saveAudio: state.saveAudio,
+      diarOn: state.diarOn,
+      dgKey: state.dgKey,
+    }));
+  } catch {}
+}
+
+function setAudioSource(src) {
+  state.audioSource = src;
+  applyAudioSourceUI();
+  saveConfig();
+}
+function applyAudioSourceUI() {
+  $("srcMic").classList.toggle("active", state.audioSource === "mic");
+  $("srcRoom").classList.toggle("active", state.audioSource === "room");
+  $("roomHint").classList.toggle("hidden", state.audioSource !== "room");
+}
+
+function toggleKeyVis() {
+  const inp = $("dgKey");
+  inp.type = inp.type === "password" ? "text" : "password";
+}
+
+function dgEnabled() {
+  return state.diarOn && state.dgKey && state.dgKey.length >= 20;
+}
+
+// ============================
+// CAPTURA DE ÁUDIO
+// ============================
+async function startAudioCapture() {
+  state._audioChunks = [];
+  state._audioBlob = null;
+
+  const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+    ? "audio/webm;codecs=opus"
+    : (MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg");
+
+  // Microfone — REUTILIZA o stream se já foi concedido antes
+  // (evita o navegador ter que reativar o acesso a cada gravação)
+  let micStream = state._micStreamCached;
+  const micAlive = micStream && micStream.getAudioTracks().some(t => t.readyState === "live");
+  if (!micAlive) {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
+      video: false,
+    });
+    state._micStreamCached = micStream;
+  } else {
+    // Reabilita as tracks caso estivessem desabilitadas
+    micStream.getAudioTracks().forEach(t => { t.enabled = true; });
+  }
+  state._audioStream = micStream;
+
+  let finalStream = micStream;
+
+  // Modo online: mistura com áudio da aba
+  if (state.audioSource === "room") {
+    try {
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 1 },
+        audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 },
+      });
+      const tabAudioTracks = displayStream.getAudioTracks();
+      if (tabAudioTracks.length > 0) {
+        state._audioCtx = new AudioContext({ sampleRate: 44100 });
+        const dest = state._audioCtx.createMediaStreamDestination();
+        state._audioCtx.createMediaStreamSource(micStream).connect(dest);
+        state._audioCtx.createMediaStreamSource(displayStream).connect(dest);
+        finalStream = dest.stream;
+        state._displayStream = displayStream;
+        displayStream.getVideoTracks().forEach(t => t.stop());
+      } else {
+        displayStream.getTracks().forEach(t => t.stop());
+        showError('Você não marcou "Compartilhar áudio". Vou usar só o microfone.');
+      }
+    } catch (dispErr) {
+      // Usuário cancelou — continua só com mic
+    }
+  }
+
+  // Grava se usuário quer salvar o áudio OU se diarização está ligada (precisa do stream)
+  const needRecorder = state.saveAudio || dgEnabled();
+  if (needRecorder) {
+    state._mediaRecorder = new MediaRecorder(finalStream, { mimeType, audioBitsPerSecond: 128000 });
+    state._mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) {
+        state._audioChunks.push(e.data);
+        // Envia pra Deepgram se estiver conectado
+        if (state._dg && state._dg.readyState === WebSocket.OPEN) {
+          try { state._dg.send(e.data); } catch {}
+        }
+      }
+    };
+    state._mediaRecorder.onstop = () => {
+      if (state._audioChunks.length > 0) {
+        state._audioBlob = new Blob(state._audioChunks, { type: mimeType });
+      }
+      // NÃO paramos o mic cacheado — evita novo pedido de permissão
+      // Apenas o display stream (modo online) e o audioCtx
+      if (state._displayStream) {
+        state._displayStream.getTracks().forEach(t => t.stop());
+        state._displayStream = null;
+      }
+      if (state._audioCtx) {
+        try { state._audioCtx.close(); } catch {}
+        state._audioCtx = null;
+      }
+      state._audioStream = null;
+    };
+    state._mediaRecorder.start(500);  // chunks de 500 ms
+  }
+
+  return finalStream;
+}
+
+function pauseAudioCapture() {
+  if (state._mediaRecorder && state._mediaRecorder.state === "recording") {
+    try { state._mediaRecorder.pause(); } catch {}
+  }
+}
+function resumeAudioCapture() {
+  if (state._mediaRecorder && state._mediaRecorder.state === "paused") {
+    try { state._mediaRecorder.resume(); } catch {}
+  }
+}
+function stopAudioCapture() {
+  if (state._mediaRecorder && state._mediaRecorder.state !== "inactive") {
+    try { state._mediaRecorder.stop(); } catch {}
+  }
+  // O display stream (modo online) precisa parar sempre
+  if (state._displayStream) {
+    state._displayStream.getTracks().forEach(t => t.stop());
+    state._displayStream = null;
+  }
+  // ATENÇÃO: NÃO paramos o _micStreamCached aqui — ele é mantido vivo entre
+  // gravações para evitar um novo pedido de permissão do navegador.
+  state._audioStream = null;
+}
+
+// Libera completamente o microfone (fecha os tracks).
+// Só deve ser chamado em erro fatal ou quando a página é fechada.
+function releaseMicStream() {
+  if (state._micStreamCached) {
+    try { state._micStreamCached.getTracks().forEach(t => t.stop()); } catch {}
+    state._micStreamCached = null;
+  }
+  state._audioStream = null;
+}
+
+// ============================
+// DEEPGRAM (WebSocket)
+// ============================
+async function dgStart() {
+  const lang = $("langSel").value || "pt-BR";
+  const params = new URLSearchParams({
+    model: "nova-2",
+    language: lang,
+    diarize: "true",
+    punctuate: "true",
+    smart_format: "true",
+    interim_results: "true",
+    endpointing: "300",
+  });
+  const url = `wss://api.deepgram.com/v1/listen?${params}`;
+  state._dg = new WebSocket(url, ["token", state.dgKey]);
+
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Não foi possível conectar (verifique sua chave)")), 10000);
+    state._dg.addEventListener("open", () => { clearTimeout(timeout); resolve(); }, { once: true });
+    state._dg.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("Falha ao conectar com o serviço de identificação de vozes")); }, { once: true });
+  });
+
+  state._dg.onmessage = dgOnMessage;
+  state._dg.onclose = ev => {
+    clearInterval(state._dgKeepalive);
+    state._dgKeepalive = null;
+    if (state.rec && ev.code !== 1000) {
+      showError("A identificação de vozes desconectou. Pare e comece de novo se precisar.");
+    }
+    state._dg = null;
+  };
+
+  state._dgKeepalive = setInterval(() => {
+    if (state._dg && state._dg.readyState === WebSocket.OPEN) {
+      try { state._dg.send(JSON.stringify({ type: "KeepAlive" })); } catch {}
+    }
+  }, 8000);
+}
+
+function dgStop() {
+  clearInterval(state._dgKeepalive);
+  state._dgKeepalive = null;
+  if (state._dg) {
+    try { if (state._dg.readyState === WebSocket.OPEN) state._dg.send(JSON.stringify({ type: "CloseStream" })); } catch {}
+    try { state._dg.close(1000, "stopped"); } catch {}
+    state._dg = null;
+  }
+}
+
+function dgOnMessage(ev) {
+  let msg;
+  try { msg = JSON.parse(ev.data); } catch { return; }
+  if (msg.type !== "Results") return;
+  const alt = msg.channel && msg.channel.alternatives && msg.channel.alternatives[0];
+  if (!alt || !alt.transcript) return;
+
+  if (msg.is_final) {
+    // Agrupa palavras por falante
+    const words = alt.words || [];
+    if (!words.length) { state.interim = ""; renderTranscript(); return; }
+    const groups = [];
+    let cur = null;
+    for (const w of words) {
+      const sIdx = typeof w.speaker === "number" ? w.speaker : 0;
+      const token = w.punctuated_word || w.word || "";
+      if (!cur || cur.sIdx !== sIdx) { cur = { sIdx, tokens: [] }; groups.push(cur); }
+      cur.tokens.push(token);
+    }
+    groups.forEach(g => {
+      const name = dgSpeakerName(g.sIdx);
+      state.entries.push({
+        text: g.tokens.join(" ").replace(/\s+([.,!?;:])/g, "$1"),
+        ts: nowClock(),
+        speaker: name,
+        speakerId: g.sIdx,
+      });
+    });
+    state.interim = "";
+  } else {
+    state.interim = alt.transcript;
+  }
+  renderTranscript();
+}
+
+function dgSpeakerName(idx) {
+  if (!state._dgSpeakerMap[idx]) state._dgSpeakerMap[idx] = `Falante ${idx + 1}`;
+  return state._dgSpeakerMap[idx];
+}
+
+function renameSpeaker(speakerId) {
+  const current = state._dgSpeakerMap[speakerId] || `Falante ${speakerId + 1}`;
+  const newName = prompt(`Renomear "${current}" para:`, current);
+  if (!newName || !newName.trim()) return;
+  const trimmed = newName.trim().slice(0, 40);
+  if (trimmed === current) return;
+  state._dgSpeakerMap[speakerId] = trimmed;
+  state.entries.forEach(e => { if (e.speakerId === speakerId) e.speaker = trimmed; });
+  renderTranscript();
+}
+
+
+// - idle (rec=false, paused=false): botão "Gravar" vermelho
+// - recording (rec=true, paused=false): botão "Pausar" (vermelho pulsando) + "Parar"
+// - paused (rec=false, paused=true): botão "Continuar" (verde) + "Parar"
+// - finished: volta a idle e mostra ações
+
+async function startRec() {
+  $("errorBar").classList.add("hidden");
+
+  // Se resumindo uma pausa, usa state.pausedElapsed
+  const isResume = state.paused;
+
+  // Garante que ainda temos permissão e infra de áudio (captura o microfone / aba)
+  try {
+    if (!isResume) {
+      // Nova gravação: precisamos iniciar captura de áudio se necessário
+      const needAudio = state.saveAudio || dgEnabled() || state.audioSource === "room";
+      if (needAudio) {
+        try {
+          await startAudioCapture();
+        } catch (audioErr) {
+          if (audioErr.name === "NotAllowedError" || audioErr.message.includes("denied")) {
+            showError("O microfone está bloqueado. Libere o microfone nas permissões do navegador.");
+            return;
+          }
+          showError("Não foi possível acessar o microfone. Tente recarregar a página.");
+          return;
+        }
+      }
+
+      // Se diarização está ligada, conecta com Deepgram
+      if (dgEnabled()) {
+        try {
+          await dgStart();
+        } catch (dgErr) {
+          showError(dgErr.message || "Falha ao iniciar identificação de vozes.");
+          stopAudioCapture();
+          return;
+        }
+      }
+    } else {
+      // Retomando pausa
+      resumeAudioCapture();
+      // Se estava com Deepgram, tenta reconectar
+      if (dgEnabled() && !state._dg) {
+        try { await dgStart(); } catch {}
+      }
+    }
+  } catch (e) {
+    showError("Erro ao preparar a gravação: " + (e.message || e));
+    return;
+  }
+
+  // Web Speech API — só usamos quando diarização NÃO está ligada (Deepgram já faz transcrição)
+  if (!dgEnabled()) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      showError("Seu navegador não aceita transcrição. Use o Google Chrome ou o Microsoft Edge.");
+      stopAudioCapture();
+      return;
+    }
+    const r = new SR();
+    r.lang = $("langSel").value || "pt-BR";
+    r.continuous = true;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    r.onresult = ev => {
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const txt = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) {
+          const clean = txt.trim();
+          if (clean) { state.entries.push({text:clean, ts:nowClock()}); renderTranscript(); }
+          state.interim = "";
+        } else { interim += txt; }
+      }
+      if (interim) { state.interim = interim; renderTranscript(); }
+    };
+
+    r.onerror = e => {
+      if (e.error === "not-allowed") {
+        showError("O microfone está bloqueado. Libere o microfone nas permissões do navegador.");
+        hardStop();
+      } else if (e.error === "network") {
+        showError("Sem conexão com a internet. A transcrição precisa de internet para funcionar.");
+      }
+    };
+
+    r.onend = () => {
+      if (state.rec && state.recognition) {
+        try { r.start(); } catch {}
+      }
+    };
+
+    try {
+      r.start();
+      state.recognition = r;
+    } catch (e) {
+      showError("Não foi possível iniciar a transcrição. Tente recarregar a página.");
+      stopAudioCapture();
+      dgStop();
+      return;
+    }
+  }
+
+  state.rec = true;
+  state.paused = false;
+  state.startTime = Date.now() - (state.pausedElapsed * 1000);
+  state.timer = setInterval(() => {
+    state.elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    updateTimer();
+  }, 500);
+
+  if (!$("sessionName").value.trim()) {
+    $("sessionName").value = `Gravação ${new Date().toLocaleDateString("pt-BR")} ${nowClock()}`;
+  }
+
+  $("actions").classList.add("hidden");
+  $("moreExports").classList.add("hidden");
+  const fp = $("finishPanel"); if (fp) fp.classList.add("hidden");
+  updateRecUI();
+}
+
+function pauseRec() {
+  // Interrompe o reconhecimento mas guarda o que já foi transcrito
+  if (state.recognition) {
+    state.recognition.onend = null;
+    try { state.recognition.stop(); } catch {}
+    state.recognition = null;
+  }
+  pauseAudioCapture();
+  // Não fechamos o Deepgram no pause — ele tem KeepAlive
+  clearInterval(state.timer);
+  state.timer = null;
+  state.rec = false;
+  state.paused = true;
+  state.interim = "";
+  state.pausedElapsed = state.elapsed;
+  updateRecUI();
+  renderTranscript();
+}
+
+function resumeRec() {
+  // Só chama startRec de novo — ele usa state.pausedElapsed e detecta que é resume
+  startRec();
+}
+
+function finishRec() {
+  // Parar de vez — salva e mostra o painel com as opções (TXT/PDF/Resumo)
+  // Se ainda tem texto "interim" (frase em andamento), adiciona-o antes de parar
+  if (state.interim && state.interim.trim()) {
+    state.entries.push({ text: state.interim.trim(), ts: nowClock() });
+    state.interim = "";
+  }
+
+  // Paramos o reconhecimento mas MANTEMOS o onresult ativo por um instante,
+  // pra capturar o último resultado final (Chrome emite ele após o stop).
+  const rec = state.recognition;
+  if (rec) {
+    rec.onend = null;
+    try { rec.stop(); } catch {}
+  }
+  state.recognition = null;
+  dgStop();
+  stopAudioCapture();
+  clearInterval(state.timer);
+  state.timer = null;
+  state.rec = false;
+  state.paused = false;
+  state.pausedElapsed = 0;
+
+  // Mostra o painel imediatamente no UI (estado "parando")
+  $("finishPanel").classList.remove("hidden");
+  updateRecUI();
+  renderTranscript();
+
+  // Aguarda um pouco pra captar resultados finais pendentes
+  // (Web Speech pode emitir onresult após stop; Deepgram idem)
+  setTimeout(() => {
+    // Incorpora mais uma vez o interim se algo ainda veio
+    if (state.interim && state.interim.trim()) {
+      state.entries.push({ text: state.interim.trim(), ts: nowClock() });
+      state.interim = "";
+    }
+
+    if (state.entries.length > 0) {
+      saveCurrentSession();
+      $("actions").classList.remove("hidden");
+      $("moreExports").classList.remove("hidden");
+      updateRecUI();
+      renderTranscript();
+      // Rola até o painel de opções
+      setTimeout(() => {
+        const panel = $("finishPanel");
+        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 120);
+    } else {
+      // Sem conteúdo — esconde o painel de volta
+      $("finishPanel").classList.add("hidden");
+      updateRecUI();
+      renderTranscript();
+    }
+  }, 500);
+}
+
+function hardStop() {
+  // Usado em erro fatal — reseta tudo sem salvar, libera mic
+  if (state.recognition) {
+    state.recognition.onend = null;
+    try { state.recognition.stop(); } catch {}
+    state.recognition = null;
+  }
+  dgStop();
+  stopAudioCapture();
+  releaseMicStream();
+  clearInterval(state.timer);
+  state.timer = null;
+  state.rec = false;
+  state.paused = false;
+  state.interim = "";
+  state.pausedElapsed = 0;
+  state._audioBlob = null;
+  state._audioChunks = [];
+  updateRecUI();
+}
+
+function saveCurrentSession() {
+  const name = $("sessionName").value.trim() || `Gravação ${fmtDate(Date.now())}`;
+  // Aguarda o mediaRecorder finalizar o blob (pode levar alguns frames)
+  const finalize = () => {
+    const session = {
+      id: Date.now(),
+      name,
+      date: new Date().toISOString(),
+      duration: fmtTime(state.elapsed),
+      durationSec: state.elapsed,
+      entries: [...state.entries],
+      speakers: [...new Set(state.entries.map(e => e.speaker).filter(Boolean))],
+      hasAudio: !!state._audioBlob,
+    };
+    state.lastSessionData = session;
+    // Mantém o blob em memória pra download (não guardamos no localStorage — é grande)
+    state._lastAudioBlob = state._audioBlob;
+    state.saved = [session, ...state.saved].slice(0, 20);
+    persist();
+    renderHistory();
+  };
+  // Se o MediaRecorder ainda está rodando (não parou), dá um frame pra ele liberar
+  if (state._mediaRecorder && state._mediaRecorder.state === "recording") {
+    state._mediaRecorder.addEventListener("stop", finalize, { once: true });
+    try { state._mediaRecorder.stop(); } catch { finalize(); }
+  } else {
+    // Pequeno delay pra garantir que onstop já rodou
+    setTimeout(finalize, 120);
+  }
+}
+
+function newSession() {
+  state.entries = [];
+  state.interim = "";
+  state.elapsed = 0;
+  state.pausedElapsed = 0;
+  state.paused = false;
+  state.lastSessionData = null;
+  state.lastSummary = null;
+  state._audioBlob = null;
+  state._lastAudioBlob = null;
+  state._audioChunks = [];
+  state._dgSpeakerMap = {};
+  $("sessionName").value = "";
+  $("actions").classList.add("hidden");
+  $("moreExports").classList.add("hidden");
+  const fp2 = $("finishPanel"); if (fp2) fp2.classList.add("hidden");
+  $("errorBar").classList.add("hidden");
+  renderTranscript();
+  updateRecUI();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+// RENDER
+// ===== MENU "GERENCIAR" (durante gravação/pausa) =====
+// Gera o botão compacto + menu popover. Fica ao lado de Finalizar.
+function manageButtonHTML() {
+  const hasContent = state.entries.length > 0;
+  return `
+    <div class="rec-manage-wrap">
+      <button class="rec-action manage" id="manageBtn" onclick="toggleManageMenu(event)"
+              aria-label="Gerenciar transcrição" title="Gerenciar transcrição">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="1.6" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+          <circle cx="12" cy="19" r="1.6" fill="currentColor"/>
+        </svg>
+      </button>
+      <div class="manage-menu" id="manageMenu">
+        <div class="manage-hint">Transcrição parcial</div>
+        <button class="manage-item" onclick="liveSummary()" ${hasContent ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5 L13.5 9.2 L20 10.5 L13.5 11.8 L12 18.5 L10.5 11.8 L4 10.5 L10.5 9.2 Z"/></svg>
+          Ver resumo parcial
+        </button>
+        <button class="manage-item" onclick="liveCopy()" ${hasContent ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          Copiar texto
+        </button>
+        <button class="manage-item divider-top" onclick="liveDownloadPDF()" ${hasContent ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Baixar PDF
+        </button>
+        <button class="manage-item" onclick="liveDownloadTXT()" ${hasContent ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
+          Baixar TXT
+        </button>
+      </div>
+      <div class="manage-overlay" id="manageOverlay" onclick="closeManageMenu()"></div>
+    </div>
+  `;
+}
+
+function toggleManageMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = $("manageMenu");
+  const btn = $("manageBtn");
+  const ov = $("manageOverlay");
+  if (!menu) return;
+  const isOpen = menu.classList.contains("open");
+  if (isOpen) { closeManageMenu(); }
+  else {
+    menu.classList.add("open");
+    btn.classList.add("open");
+    ov.classList.add("open");
+  }
+}
+
+function closeManageMenu() {
+  const menu = $("manageMenu");
+  const btn = $("manageBtn");
+  const ov = $("manageOverlay");
+  if (menu) menu.classList.remove("open");
+  if (btn) btn.classList.remove("open");
+  if (ov) ov.classList.remove("open");
+}
+
+// Monta um "snapshot" da sessão ao vivo (durante gravação) para reutilizar
+// as funções existentes de resumo/PDF/TXT que esperam state.lastSessionData.
+function buildLiveSessionData() {
+  const name = ($("sessionName").value.trim() || `Gravação ${fmtDate(Date.now())}`) + " (parcial)";
+  return {
+    id: Date.now(),
+    name,
+    date: new Date().toISOString(),
+    duration: fmtTime(state.elapsed),
+    durationSec: state.elapsed,
+    entries: [...state.entries],
+    speakers: [...new Set(state.entries.map(e => e.speaker).filter(Boolean))],
+    hasAudio: false,
+    _partial: true,
+  };
+}
+
+// Mostra o resumo parcial usando o mesmo modal do resumo final
+function liveSummary() {
+  closeManageMenu();
+  if (!state.entries.length) return;
+  const d = buildLiveSessionData();
+
+  $("modalTitle").textContent = "Resumo parcial";
+  $("modalSub").textContent = `${d.name} · ${d.duration} · ${wordCount(d.entries)} palavras`;
+  $("modalBody").innerHTML = `<div class="loading"><div class="spin"></div><p style="color:var(--textMid);font-size:14px">Gerando resumo do que foi gravado até agora...</p></div>`;
+  $("modalFoot").style.display = "none";
+  $("modal").classList.remove("hidden");
+
+  setTimeout(() => {
+    try {
+      const sum = buildSummary(d);
+      if (!sum) throw new Error("Sem conteúdo.");
+      // Guarda num campo separado pra não atropelar o resumo final
+      state._liveSummary = sum;
+      state._liveSessionData = d;
+      renderSummary(sum, d);
+      // Rodapé do modal: oferece baixar PDF parcial e copiar
+      $("modalFoot").style.display = "flex";
+      $("modalFoot").innerHTML = `
+        <button class="action-btn" onclick="liveCopyFromModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          Copiar
+        </button>
+        <button class="action-btn primary" onclick="liveDownloadPDFFromModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Baixar PDF
+        </button>
+      `;
+    } catch (err) {
+      $("modalBody").innerHTML = `<div style="padding:20px;text-align:center;color:var(--textMid)">Ainda não há conteúdo suficiente para um resumo. Continue gravando e tente de novo.</div>`;
+    }
+  }, 220);
+}
+
+// Copia transcrição parcial (usa o mesmo formato do buildShareText)
+function liveCopy() {
+  closeManageMenu();
+  if (!state.entries.length) return;
+  const d = buildLiveSessionData();
+  const lines = [
+    `📝 ${d.name}`,
+    `${fmtDateLong(d.date)} · ${d.duration}`,
+    "",
+    "━━ TRANSCRIÇÃO PARCIAL ━━",
+    ...d.entries.map(e => `[${e.ts}] ${e.text}`),
+    "",
+    "— CPWhat's up (gravação em andamento)",
+  ];
+  const txt = lines.join("\n");
+  const done = () => {
+    // Feedback visual rápido no ícone do botão gerenciar
+    const btn = $("manageBtn");
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#2EBF8B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    setTimeout(() => { btn.innerHTML = orig; }, 1400);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = txt; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); ta.remove();
+      done();
+    });
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = txt; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove();
+    done();
+  }
+}
+
+function liveCopyFromModal() {
+  // Mesma cópia, mas mostra feedback no botão do modal
+  const d = state._liveSessionData || buildLiveSessionData();
+  const sum = state._liveSummary;
+  const lines = [`📝 ${d.name}`, `${fmtDateLong(d.date)} · ${d.duration}`, ""];
+  if (sum) {
+    lines.push("━━ RESUMO PARCIAL ━━", sum.resumoExecutivo, "");
+    if (sum.pontos.length) {
+      lines.push("PONTOS PRINCIPAIS");
+      sum.pontos.forEach(p => lines.push("• " + p));
+      lines.push("");
+    }
+    if (sum.acoes.length) {
+      lines.push("O QUE FAZER DEPOIS");
+      sum.acoes.forEach(a => {
+        let line = "• " + a.texto;
+        if (a.prazo) line += ` (prazo: ${a.prazo})`;
+        lines.push(line);
+      });
+      lines.push("");
+    }
+  }
+  lines.push("━━ TRANSCRIÇÃO PARCIAL ━━");
+  d.entries.forEach(e => lines.push(`[${e.ts}] ${e.text}`));
+  lines.push("", "— CPWhat's up (gravação em andamento)");
+  const txt = lines.join("\n");
+  navigator.clipboard?.writeText(txt);
+  // Feedback no botão
+  const btns = $("modalFoot").querySelectorAll("button");
+  if (btns[0]) {
+    const orig = btns[0].innerHTML;
+    btns[0].innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copiado`;
+    setTimeout(() => { btns[0].innerHTML = orig; }, 1800);
+  }
+}
+
+// Baixa TXT parcial
+function liveDownloadTXT() {
+  closeManageMenu();
+  if (!state.entries.length) return;
+  const d = buildLiveSessionData();
+  const lines = [
+    `${d.name}`,
+    `${fmtDateLong(d.date)} · Duração ${d.duration}`,
+    "─".repeat(50),
+    "",
+    ...d.entries.map(e => e.speaker ? `[${e.ts}] ${e.speaker}: ${e.text}` : `[${e.ts}] ${e.text}`),
+  ];
+  dlFile(lines.join("\n"), `${safeFileName(d.name)}.txt`, "text/plain;charset=utf-8");
+}
+
+// Baixa PDF parcial (gera uma janela nova igual ao downloadPDF, mas marcada como parcial)
+function liveDownloadPDF() {
+  closeManageMenu();
+  if (!state.entries.length) return;
+  _liveDownloadPDFImpl();
+}
+
+function liveDownloadPDFFromModal() {
+  _liveDownloadPDFImpl();
+}
+
+function _liveDownloadPDFImpl() {
+  const d = state._liveSessionData || buildLiveSessionData();
+  // Tenta resumir; se falhar, segue sem resumo
+  let sum = state._liveSummary;
+  if (!sum) {
+    try { sum = buildSummary(d); } catch { sum = null; }
+  }
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(d.name)}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;padding:48px;max-width:820px;margin:0 auto;color:#1a2a40;line-height:1.55}
+.partial{display:inline-block;background:#FEF3CD;color:#8A5C00;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+h1{font-size:22px;color:#0E2747;margin-bottom:6px;font-weight:600}
+.sub{font-size:13px;color:#5B7495;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid #E0E8F0}
+h2{font-size:13px;color:#0E2747;text-transform:uppercase;letter-spacing:.08em;margin:22px 0 12px;font-weight:600}
+.exec{background:#F0F6FD;border-left:3px solid #4A9AE8;padding:14px 16px;border-radius:6px;margin-bottom:8px;font-size:14px;line-height:1.65}
+ul{list-style:none}
+li{padding:8px 0 8px 20px;font-size:13.5px;border-bottom:1px solid #F0F4F9;position:relative}
+li:last-child{border-bottom:none}
+li::before{content:"";position:absolute;left:0;top:14px;width:6px;height:6px;border-radius:50%;background:#4A9AE8}
+ul.gold li::before{background:#B5860D}
+.prazo{font-size:11.5px;color:#8A5C00;background:#FEF3CD;padding:2px 8px;border-radius:20px;display:inline-block;margin-top:4px}
+.tr{padding:8px 0;border-bottom:1px solid #F0F4F9;font-size:13px;line-height:1.6}
+.tr:last-child{border-bottom:none}
+.tm{color:#8A9DB8;font-size:11px;margin-right:8px;font-weight:500}
+.ft{margin-top:40px;padding-top:16px;border-top:2px solid #E0E8F0;text-align:center;font-size:11px;color:#8A9DB8}
+@media print{body{padding:24px}}
+</style></head><body>
+<span class="partial">Gravação em andamento</span>
+<h1>${escHtml(d.name)}</h1>
+<p class="sub">${fmtDateLong(d.date)} · Duração ${d.duration} · ${wordCount(d.entries)} palavras</p>
+${sum && sum.resumoExecutivo ? `<h2>Resumo parcial</h2><div class="exec">${escHtml(sum.resumoExecutivo)}</div>` : ""}
+${sum && sum.pontos.length ? `<h2>Pontos principais</h2><ul>${sum.pontos.map(p => `<li>${escHtml(p)}</li>`).join("")}</ul>` : ""}
+${sum && sum.acoes.length ? `<h2>O que fazer depois</h2><ul class="gold">${sum.acoes.map(a => `<li>${escHtml(a.texto)}${a.prazo ? `<br><span class="prazo">Prazo: ${escHtml(a.prazo)}</span>` : ""}</li>`).join("")}</ul>` : ""}
+<h2>Transcrição parcial</h2>
+${d.entries.map(e => `<div class="tr"><span class="tm">${e.ts}</span>${escHtml(e.text)}</div>`).join("")}
+<div class="ft">Gerado por CPWhat's up · Transcrição parcial (a gravação ainda estava em andamento)</div>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) { alert("Seu navegador bloqueou a janela. Libere pop-ups para este site."); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
+
+// RENDER
+function updateRecUI() {
+  const wrap = $("recWrap");
+  const has = state.entries.length > 0;
+
+  if (state.rec) {
+    // GRAVANDO — mostra timer + "Pausar", "Finalizar" e "Gerenciar"
+    wrap.innerHTML = `
+      <div class="rec-timer-big">
+        <span class="rec-dot-live"></span>
+        <span class="rec-timer-num">${fmtTime(state.elapsed)}</span>
+      </div>
+      <div class="rec-status">Gravando — fale normalmente</div>
+      <div class="rec-dual">
+        <button class="rec-action pause" onclick="pauseRec()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          Pausar
+        </button>
+        <button class="rec-action finish" onclick="finishRec()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          Finalizar
+        </button>
+        ${manageButtonHTML()}
+      </div>
+    `;
+  } else if (state.paused) {
+    // PAUSADO — mostra timer (cinza) + "Continuar", "Finalizar" e "Gerenciar"
+    wrap.innerHTML = `
+      <div class="rec-timer-big paused">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        <span class="rec-timer-num">${fmtTime(state.elapsed)}</span>
+      </div>
+      <div class="rec-status">Pausado</div>
+      <div class="rec-dual">
+        <button class="rec-action resume" onclick="resumeRec()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          Continuar
+        </button>
+        <button class="rec-action finish" onclick="finishRec()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          Finalizar
+        </button>
+        ${manageButtonHTML()}
+      </div>
+    `;
+  } else {
+    // PARADO (estado inicial ou após finalizar) — botão redondo "Gravar"
+    wrap.innerHTML = `
+      <button class="rec-btn" onclick="startRec()" aria-label="${has ? 'Gravar de novo' : 'Gravar'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>
+        <span>${has ? 'Gravar de novo' : 'Gravar'}</span>
+      </button>
+      <div class="rec-status">${has ? '<strong>Gravação finalizada.</strong> Resumo e transcrição abaixo.' : 'Clique no botão para começar'}</div>
+    `;
+  }
+}
+
+function updateTimer() {
+  if (state.rec || state.paused) {
+    const el = document.querySelector(".rec-timer-num");
+    if (el) el.textContent = fmtTime(state.elapsed);
+  }
+}
+
+function renderTranscript() {
+  const el = $("transcript");
+  if (!state.entries.length && !state.interim) {
+    el.className = "transcript empty";
+    if (state.rec) {
+      el.innerHTML = `<div class="emoji">👂</div><p>Ouvindo... pode falar!</p>`;
+    } else if (state.paused) {
+      el.innerHTML = `<div class="emoji">⏸</div><p>Pausado. Clique em "Continuar" quando quiser retomar.</p>`;
+    } else {
+      el.innerHTML = `<div class="emoji">💬</div><p>O que você falar aparece aqui.</p>`;
+    }
+    return;
+  }
+  el.className = "transcript";
+  // Cores por falante (quando existe diarização)
+  const speakers = [...new Set(state.entries.map(e => e.speaker).filter(Boolean))];
+  const SPK_COLORS = ["#6BB5FF","#E8BF3F","#2EBF8B","#C6B3FB","#FF89A0","#FFB547","#4AD4E8"];
+  const spkColor = s => SPK_COLORS[speakers.indexOf(s) % SPK_COLORS.length] || "#6BB5FF";
+
+  let html = state.entries.map(e => {
+    const speakerHtml = e.speaker
+      ? `<span class="tr-speaker" style="color:${spkColor(e.speaker)}"${typeof e.speakerId==="number" ? ` onclick="renameSpeaker(${e.speakerId})" title="Clique para renomear"` : ""}>${escHtml(e.speaker)}</span>`
+      : "";
+    return `<div class="tr-entry">${speakerHtml}<span class="tr-time">${e.ts}</span>${escHtml(e.text)}</div>`;
+  }).join("");
+
+  if (state.interim && state.rec) {
+    html += `<div class="tr-entry interim"><span class="tr-time">${nowClock()}</span>${escHtml(state.interim)}...</div>`;
+  }
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderHistory() {
+  const el = $("history");
+  const c = $("histCount");
+  if (!state.saved.length) {
+    c.textContent = "";
+    el.innerHTML = `<div class="empty-state">Suas gravações vão aparecer aqui depois que você gravar.</div>`;
+    return;
+  }
+  c.textContent = `${state.saved.length} ${state.saved.length===1 ? "gravação" : "gravações"}`;
+  el.innerHTML = state.saved.map(s => `
+    <div class="session">
+      <div class="session-main" onclick="viewSession(${s.id})">
+        <div class="session-name">${escHtml(s.name)}</div>
+        <div class="session-meta">${fmtDate(s.date)} · ${s.duration} · ${wordCount(s.entries)} palavras</div>
+      </div>
+      <button class="session-del" onclick="deleteSession(${s.id})" aria-label="Excluir" title="Excluir esta gravação">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      </button>
+    </div>
+  `).join("");
+}
+
+function viewSession(id) {
+  const s = state.saved.find(x => x.id === id);
+  if (!s) return;
+  state.lastSessionData = s;
+  state.lastSummary = null;
+  showSummary();
+}
+
+function deleteSession(id) {
+  if (!confirm("Excluir esta gravação?")) return;
+  state.saved = state.saved.filter(s => s.id !== id);
+  persist();
+  renderHistory();
+}
+
+function showError(msg) {
+  const bar = $("errorBar");
+  bar.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div>${msg}</div>`;
+  bar.classList.remove("hidden");
+  bar.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+// RESUMO LOCAL
+const PT_STOPWORDS = new Set(("a,o,e,é,de,do,da,dos,das,em,no,na,nos,nas,um,uma,uns,umas,"+
+  "que,para,por,com,como,mas,ou,se,não,nao,sim,já,ja,vai,vou,ser,está,esta,estão,estao,estou,estar,sou,são,sao,foi,foram,era,eram,"+
+  "ter,tem,tenho,temos,têm,tinha,tinham,há,ha,havia,pode,podem,posso,poder,deve,devem,"+
+  "eu,tu,ele,ela,nós,nos,vós,vos,eles,elas,você,voce,vocês,voces,me,te,se,lhes,meu,minha,seu,sua,nosso,nossa,"+
+  "este,esta,isso,isto,esse,essa,aquele,aquela,aquilo,aqui,ali,lá,la,então,entao,assim,também,tambem,só,so,apenas,muito,pouco,"+
+  "mais,menos,bem,mal,agora,hoje,ontem,amanhã,amanha,quando,onde,porque,qual,quais,quanto,quanta,"+
+  "depois,antes,sobre,entre,até,ate,desde,sem,sob,contra,ante,após,apos,dentro,fora,"+
+  "porém,porem,contudo,todavia,entretanto,embora,ainda,sempre,nunca,talvez,realmente,"+
+  "qualquer,algum,alguma,nenhum,nenhuma,todo,toda,todos,todas,cada,outro,outra,mesmo,mesma,"+
+  "pra,pro,tá,ta,tô,to,aí,ai,né,ne,tipo,daí,dai,vc,vcs,vamos,iremos").split(","));
+
+function normText(s) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\s-]/g," ").replace(/\s+/g," ").trim();
+}
+function tokens(s) {
+  return normText(s).split(/\s+/).filter(w => w.length > 2 && !PT_STOPWORDS.has(w));
+}
+function sentencize(entries) {
+  const out = [];
+  entries.forEach((e, idx) => {
+    const t = (e.text||"").trim();
+    if (!t) return;
+    const parts = t.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ])/);
+    parts.forEach((p, pIdx) => {
+      const clean = p.trim();
+      if (clean.length < 4) return;
+      out.push({text:clean, ts:e.ts, entryIdx:idx, partIdx:pIdx, tokens:tokens(clean), words:clean.split(/\s+/).length});
+    });
+  });
+  return out;
+}
+function capFirst(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function buildSummary(session) {
+  const entries = session.entries || [];
+  if (!entries.length) return null;
+  const sentences = sentencize(entries);
+  if (!sentences.length) return null;
+
+  const docFreq = {};
+  sentences.forEach(s => new Set(s.tokens).forEach(t => docFreq[t] = (docFreq[t]||0)+1));
+  const N = sentences.length;
+  const idf = {};
+  Object.keys(docFreq).forEach(t => idf[t] = Math.log((N+1)/(docFreq[t]+1))+1);
+
+  sentences.forEach(s => {
+    const tf = {};
+    s.tokens.forEach(t => tf[t] = (tf[t]||0)+1);
+    let sc = 0;
+    Object.keys(tf).forEach(t => sc += tf[t] * (idf[t]||0));
+    s.score = s.tokens.length > 0 ? sc / Math.sqrt(s.tokens.length) : 0;
+    if (s.words < 4) s.score *= 0.4;
+    if (s.words > 60) s.score *= 0.7;
+  });
+
+  if (sentences.length >= 3) {
+    const sim = sentences.map(() => ({}));
+    for (let i = 0; i < sentences.length; i++) {
+      const si = new Set(sentences[i].tokens);
+      for (let j = i+1; j < sentences.length; j++) {
+        let common = 0;
+        sentences[j].tokens.forEach(t => { if (si.has(t)) common++; });
+        if (common > 0) {
+          const norm = common / (Math.log(sentences[i].tokens.length+1) + Math.log(sentences[j].tokens.length+1));
+          sim[i][j] = norm; sim[j][i] = norm;
+        }
+      }
+    }
+    let ranks = sentences.map(s => s.score);
+    const d = 0.85;
+    for (let iter = 0; iter < 3; iter++) {
+      const nr = new Array(sentences.length).fill(0);
+      for (let i = 0; i < sentences.length; i++) {
+        let sum = 0;
+        for (const j in sim[i]) {
+          const deg = Object.keys(sim[j]).length || 1;
+          sum += sim[i][j] * ranks[+j] / deg;
+        }
+        nr[i] = (1-d) * sentences[i].score + d * sum;
+      }
+      ranks = nr;
+    }
+    sentences.forEach((s, i) => s.finalScore = ranks[i]);
+  } else {
+    sentences.forEach(s => s.finalScore = s.score);
+  }
+
+  const dedup = (arr, threshold) => {
+    threshold = threshold || 0.55;
+    const out = [];
+    for (const s of arr) {
+      const si = new Set(s.tokens);
+      let dup = false;
+      for (const kept of out) {
+        let common = 0;
+        kept.tokens.forEach(t => { if (si.has(t)) common++; });
+        const simi = common / Math.max(si.size, kept.tokens.length, 1);
+        if (simi >= threshold) { dup = true; break; }
+      }
+      if (!dup) out.push(s);
+    }
+    return out;
+  };
+
+  const execCands = [...sentences].sort((a,b) => b.finalScore - a.finalScore).slice(0, 10);
+  const execD = dedup(execCands, 0.5).slice(0, 3);
+  execD.sort((a,b) => a.entryIdx - b.entryIdx || a.partIdx - b.partIdx);
+  const resumoExecutivo = execD.map(s => capFirst(s.text)).join(" ") || "Confira os pontos principais abaixo.";
+
+  const pts = [...sentences]
+    .filter(s => !execD.includes(s))
+    .sort((a,b) => b.finalScore - a.finalScore)
+    .slice(0, 8);
+  const ptsDedup = dedup(pts, 0.55).slice(0, 5);
+  ptsDedup.sort((a,b) => a.entryIdx - b.entryIdx);
+  const pontos = ptsDedup.map(s => capFirst(s.text));
+
+  const actionPatterns = [
+    /\b(vou|vamos|iremos|precis(?:a|amos|am))\b/i,
+    /\b(fic(?:a|ou|amos) (?:de|com|respons[áa]vel))\b/i,
+    /\b(prazo (?:é|de|para|até|:))\b/i,
+    /\b(at[ée] (?:sexta|segunda|ter[çc]a|quarta|quinta|s[áa]bado|domingo|amanh[ãa]|o dia|o fim|o final))\b/i,
+    /\b(pr[óo]ximos? passos?|pr[óo]xima semana)\b/i,
+    /\b(vai (?:preparar|criar|montar|fazer|enviar|abrir|marcar|agendar|revisar|mandar))\b/i,
+    /\b(precisa (?:fazer|preparar|enviar|revisar|entregar))\b/i,
+  ];
+  const excludePatterns = [
+    /^(bom dia|boa tarde|boa noite|oi|ol[áa]|obrigado|obrigada|valeu)/i,
+    /^(acho que|[ée] isso|perfeito|ok|beleza|certo|concordo|n[ãa]o sei|talvez)/i,
+    /^(vamos come[çc]ar|vamos l[áa])\.?$/i,
+    /\b(hoje quero|quero revisar|quero falar|vamos come[çc]ar|vamos iniciar)\b/i,
+  ];
+  const acoesRaw = sentences.filter(s => {
+    if (excludePatterns.some(p => p.test(s.text.trim()))) return false;
+    return actionPatterns.some(p => p.test(s.text));
+  });
+  const acoes = dedup(acoesRaw, 0.55)
+    .sort((a,b) => b.finalScore - a.finalScore)
+    .slice(0, 6)
+    .sort((a,b) => a.entryIdx - b.entryIdx)
+    .map(s => {
+      const m = s.text.match(/\b(?:at[ée]|no dia|prazo:?)\s+((?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:-feira)?|amanh[ãa]|pr[óo]xima semana|fim de (?:semana|m[êe]s)|\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?|\d{1,2} de [a-záéíóúç]+)/i);
+      return {texto:capFirst(s.text), prazo: m ? m[1] : null};
+    });
+
+  return {resumoExecutivo, pontos, acoes};
+}
+
+// MODAL
+function showSummary() {
+  if (!state.lastSessionData) return;
+  const d = state.lastSessionData;
+  $("modalTitle").textContent = "Resumo e transcrição";
+  $("modalSub").textContent = `${d.name} · ${d.duration} · ${wordCount(d.entries)} palavras`;
+  $("modalBody").innerHTML = `<div class="loading"><div class="spin"></div><p style="color:var(--textMid);font-size:14px">Gerando resumo...</p></div>`;
+  $("modalFoot").style.display = "none";
+  $("modal").classList.remove("hidden");
+
+  setTimeout(() => {
+    try {
+      const sum = buildSummary(d);
+      if (!sum) throw new Error("Sem conteúdo.");
+      state.lastSummary = sum;
+      renderSummary(sum, d);
+    } catch (err) {
+      $("modalBody").innerHTML = `<div style="padding:20px;text-align:center;color:var(--textMid)">Não foi possível gerar um resumo. A gravação parece muito curta.</div>`;
+    }
+  }, 220);
+}
+
+function renderSummary(sum, session) {
+  const resumoHtml = `
+    <div class="sum-sect">
+      <div class="sum-eyebrow">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5 L13.5 9.2 L20 10.5 L13.5 11.8 L12 18.5 L10.5 11.8 L4 10.5 L10.5 9.2 Z"/></svg>
+        Resumo geral
+      </div>
+      <div class="sum-exec">${escHtml(sum.resumoExecutivo)}</div>
+    </div>
+    ${sum.pontos.length ? `
+    <div class="sum-sect">
+      <div class="sum-eyebrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><circle cx="12" cy="8" r="1" fill="currentColor"/></svg>
+        Pontos principais
+      </div>
+      <ul class="sum-list">
+        ${sum.pontos.map(p => `<li>${escHtml(p)}</li>`).join("")}
+      </ul>
+    </div>` : ""}
+    ${sum.acoes.length ? `
+    <div class="sum-sect">
+      <div class="sum-eyebrow gold">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        O que fazer depois
+      </div>
+      <ul class="sum-list gold">
+        ${sum.acoes.map(a => `
+          <li>
+            ${escHtml(a.texto)}
+            ${a.prazo ? `<div class="sum-meta"><span class="sum-chip when">Prazo: ${escHtml(a.prazo)}</span></div>` : ""}
+          </li>
+        `).join("")}
+      </ul>
+    </div>` : ""}
+  `;
+
+  // Transcrição completa — todos os trechos falados
+  const entries = (session && session.entries) || [];
+  const transHtml = entries.length
+    ? `<div class="tr-scroll">${entries.map(e => {
+        const sp = e.speaker ? `<span class="mtr-speaker">${escHtml(e.speaker)}:</span>` : "";
+        return `<div class="mtr-entry"><span class="mtr-time">${escHtml(e.ts||"")}</span>${sp}${escHtml(e.text||"")}</div>`;
+      }).join("")}</div>`
+    : `<div class="mtr-empty">Nenhuma transcrição disponível.</div>`;
+
+  const html = `
+    <div class="mtabs" role="tablist">
+      <button class="mtab active" id="mtabResumo" onclick="switchMTab('resumo')" role="tab">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5 L13.5 9.2 L20 10.5 L13.5 11.8 L12 18.5 L10.5 11.8 L4 10.5 L10.5 9.2 Z"/></svg>
+        Resumo
+      </button>
+      <button class="mtab" id="mtabTrans" onclick="switchMTab('trans')" role="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
+        Transcrição (${entries.length})
+      </button>
+    </div>
+    <div class="mtab-panel active" id="mpanelResumo">${resumoHtml}</div>
+    <div class="mtab-panel" id="mpanelTrans">${transHtml}</div>
+  `;
+  $("modalBody").innerHTML = html;
+  $("modalFoot").style.display = "flex";
+}
+
+function switchMTab(which) {
+  const tabR = $("mtabResumo"), tabT = $("mtabTrans");
+  const panR = $("mpanelResumo"), panT = $("mpanelTrans");
+  if (!tabR || !tabT || !panR || !panT) return;
+  if (which === "trans") {
+    tabT.classList.add("active"); tabR.classList.remove("active");
+    panT.classList.add("active"); panR.classList.remove("active");
+  } else {
+    tabR.classList.add("active"); tabT.classList.remove("active");
+    panR.classList.add("active"); panT.classList.remove("active");
+  }
+}
+
+function closeModal() { $("modal").classList.add("hidden"); }
+
+// COPIAR / COMPARTILHAR / PDF
+function buildShareText() {
+  const d = state.lastSessionData;
+  if (!d) return "";
+  const sum = state.lastSummary;
+  const lines = [`📝 ${d.name}`, `${fmtDateLong(d.date)} · ${d.duration}`, ""];
+  if (sum) {
+    lines.push("━━ RESUMO ━━", sum.resumoExecutivo, "");
+    if (sum.pontos.length) {
+      lines.push("PONTOS PRINCIPAIS");
+      sum.pontos.forEach(p => lines.push("• " + p));
+      lines.push("");
+    }
+    if (sum.acoes.length) {
+      lines.push("O QUE FAZER DEPOIS");
+      sum.acoes.forEach(a => {
+        let line = "• " + a.texto;
+        if (a.prazo) line += ` (prazo: ${a.prazo})`;
+        lines.push(line);
+      });
+      lines.push("");
+    }
+  }
+  lines.push("━━ TRANSCRIÇÃO ━━");
+  d.entries.forEach(e => lines.push(`[${e.ts}] ${e.text}`));
+  lines.push("", "— CPWhat's up");
+  return lines.join("\n");
+}
+
+function copyText() {
+  const txt = buildShareText();
+  if (!txt) return;
+  const done = () => {
+    const b = $("copyBtn");
+    const orig = b.innerHTML;
+    b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copiado`;
+    setTimeout(() => { b.innerHTML = orig; }, 1800);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = txt; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); ta.remove();
+      done();
+    });
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = txt; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove();
+    done();
+  }
+}
+
+async function shareText() {
+  if (!state.lastSessionData) return;
+  if (!state.lastSummary) state.lastSummary = buildSummary(state.lastSessionData);
+  const txt = buildShareText();
+  const title = state.lastSessionData.name;
+
+  if (navigator.share) {
+    try { await navigator.share({title, text:txt}); return; }
+    catch (e) { if (e.name !== "AbortError") console.warn(e); return; }
+  }
+  const wa = `https://wa.me/?text=${encodeURIComponent(txt.slice(0, 3000))}`;
+  window.open(wa, "_blank");
+}
+
+function downloadPDF() {
+  const d = state.lastSessionData;
+  if (!d) return;
+  if (!state.lastSummary) state.lastSummary = buildSummary(d);
+  const sum = state.lastSummary;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(d.name)}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;padding:48px;max-width:820px;margin:0 auto;color:#1a2a40;line-height:1.55}
+h1{font-size:22px;color:#0E2747;margin-bottom:6px;font-weight:600}
+.sub{font-size:13px;color:#5B7495;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid #E0E8F0}
+h2{font-size:13px;color:#0E2747;text-transform:uppercase;letter-spacing:.08em;margin:22px 0 12px;font-weight:600}
+.exec{background:#F0F6FD;border-left:3px solid #4A9AE8;padding:14px 16px;border-radius:6px;margin-bottom:8px;font-size:14px;line-height:1.65}
+ul{list-style:none}
+li{padding:8px 0 8px 20px;font-size:13.5px;border-bottom:1px solid #F0F4F9;position:relative}
+li:last-child{border-bottom:none}
+li::before{content:"";position:absolute;left:0;top:14px;width:6px;height:6px;border-radius:50%;background:#4A9AE8}
+ul.gold li::before{background:#B5860D}
+.prazo{font-size:11.5px;color:#8A5C00;background:#FEF3CD;padding:2px 8px;border-radius:20px;display:inline-block;margin-top:4px}
+.tr{padding:8px 0;border-bottom:1px solid #F0F4F9;font-size:13px;line-height:1.6}
+.tr:last-child{border-bottom:none}
+.tm{color:#8A9DB8;font-size:11px;margin-right:8px;font-weight:500}
+.ft{margin-top:40px;padding-top:16px;border-top:2px solid #E0E8F0;text-align:center;font-size:11px;color:#8A9DB8}
+@media print{body{padding:24px}}
+</style></head><body>
+<h1>${escHtml(d.name)}</h1>
+<p class="sub">${fmtDateLong(d.date)} · Duração ${d.duration} · ${wordCount(d.entries)} palavras</p>
+${sum && sum.resumoExecutivo ? `<h2>Resumo</h2><div class="exec">${escHtml(sum.resumoExecutivo)}</div>` : ""}
+${sum && sum.pontos.length ? `<h2>Pontos principais</h2><ul>${sum.pontos.map(p => `<li>${escHtml(p)}</li>`).join("")}</ul>` : ""}
+${sum && sum.acoes.length ? `<h2>O que fazer depois</h2><ul class="gold">${sum.acoes.map(a => `<li>${escHtml(a.texto)}${a.prazo ? `<br><span class="prazo">Prazo: ${escHtml(a.prazo)}</span>` : ""}</li>`).join("")}</ul>` : ""}
+<h2>Transcrição completa</h2>
+${d.entries.map(e => `<div class="tr"><span class="tm">${e.ts}</span>${escHtml(e.text)}</div>`).join("")}
+<div class="ft">Gerado por CPWhat's up</div>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) { alert("Seu navegador bloqueou a janela. Libere pop-ups para este site."); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
+
+// Download helper
+function dlFile(content, filename, type) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function safeFileName(name) {
+  return (name || "gravacao").replace(/[^a-zA-Z0-9áéíóúâêôãõç\s-_]/gi, "").replace(/\s+/g, "-").slice(0, 60);
+}
+
+function downloadTXT() {
+  const d = state.lastSessionData;
+  if (!d) return;
+  const lines = [
+    `${d.name}`,
+    `${fmtDateLong(d.date)} · Duração ${d.duration}`,
+    "─".repeat(50),
+    "",
+    ...d.entries.map(e => e.speaker ? `[${e.ts}] ${e.speaker}: ${e.text}` : `[${e.ts}] ${e.text}`),
+  ];
+  dlFile(lines.join("\n"), `${safeFileName(d.name)}.txt`, "text/plain;charset=utf-8");
+}
+
+function downloadJSON() {
+  const d = state.lastSessionData;
+  if (!d) return;
+  dlFile(JSON.stringify(d, null, 2), `${safeFileName(d.name)}.json`, "application/json");
+}
+
+function downloadSRT() {
+  const d = state.lastSessionData;
+  if (!d) return;
+  // Formato SubRip: cada entrada recebe 3 segundos de duração (aproximação)
+  const secFmt = s => {
+    const h = String(Math.floor(s/3600)).padStart(2,"0");
+    const m = String(Math.floor((s%3600)/60)).padStart(2,"0");
+    const se = String(s%60).padStart(2,"0");
+    return `${h}:${m}:${se},000`;
+  };
+  const lines = d.entries.map((e, i) => {
+    const start = i * 3;
+    const end = start + 3;
+    return `${i+1}\n${secFmt(start)} --> ${secFmt(end)}\n${e.speaker ? e.speaker + ": " : ""}${e.text}\n`;
+  }).join("\n");
+  dlFile(lines, `${safeFileName(d.name)}.srt`, "text/srt;charset=utf-8");
+}
+
+function downloadAudio() {
+  if (!state._lastAudioBlob) {
+    alert("Nenhum áudio gravado. Marque \"Salvar o áudio\" nas configurações antes de gravar.");
+    return;
+  }
+  const d = state.lastSessionData;
+  dlFile(state._lastAudioBlob, `${safeFileName(d?.name || "gravacao")}.webm`, "audio/webm");
+}
+
+function toggleMore() {
+  const body = $("moreExportsBody");
+  const toggle = $("moreExports").querySelector(".more-toggle");
+  body.classList.toggle("hidden");
+  toggle.classList.toggle("open");
+}
+
+// CONFIG
+function openCfg() { $("cfgDrawer").classList.add("open"); $("cfgBg").classList.add("open"); }
+function closeCfg() { $("cfgDrawer").classList.remove("open"); $("cfgBg").classList.remove("open"); }
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (!$("modal").classList.contains("hidden")) closeModal();
+    else if ($("cfgDrawer").classList.contains("open")) closeCfg();
+    else if ($("manageMenu") && $("manageMenu").classList.contains("open")) closeManageMenu();
+  }
+});
+
+// INIT
+(function init() {
+  loadConfig();
+  loadSaved();
+  renderHistory();
+  renderTranscript();
+  updateRecUI();
+})();
+
+// Libera o microfone quando a aba é fechada (boa prática de privacidade)
+window.addEventListener("beforeunload", () => { releaseMicStream(); });
+</script>
+</body>
+</html>
