@@ -611,6 +611,60 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   .finish-opt{flex-direction:row;justify-content:flex-start;padding:14px 16px;min-height:auto;gap:14px}
   .finish-opt svg{width:22px;height:22px}
 }
+
+/* Whisper loading overlay */
+.wsp-overlay{
+  position:fixed;inset:0;z-index:100;background:rgba(10,18,32,.92);
+  display:none;align-items:center;justify-content:center;padding:24px;
+  backdrop-filter:blur(8px);
+}
+.wsp-overlay.on{display:flex}
+.wsp-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:18px;padding:28px 24px;max-width:420px;width:100%;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.wsp-icon{
+  width:56px;height:56px;border-radius:14px;margin-bottom:18px;
+  background:linear-gradient(135deg,#4A9AE8,#2D6DB5);
+  display:flex;align-items:center;justify-content:center;color:white;
+  box-shadow:0 8px 24px rgba(74,154,232,.35);
+}
+.wsp-title{font-size:17px;font-weight:600;margin-bottom:6px}
+.wsp-sub{font-size:13.5px;color:var(--textMid);line-height:1.5;margin-bottom:20px}
+.wsp-bar{
+  height:8px;background:rgba(74,154,232,.15);border-radius:6px;overflow:hidden;margin-bottom:10px;
+}
+.wsp-bar-fill{
+  height:100%;background:linear-gradient(90deg,#4A9AE8,#6BB5FF);
+  width:0%;transition:width .25s;border-radius:6px;
+}
+.wsp-pct{font-size:12.5px;color:var(--textMid);font-variant-numeric:tabular-nums}
+.wsp-files{font-size:11.5px;color:var(--textDim);margin-top:8px;font-family:monospace;max-height:60px;overflow:hidden}
+.wsp-cancel{
+  margin-top:18px;width:100%;padding:11px;border-radius:10px;
+  background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);
+  color:var(--red);font-size:13.5px;font-weight:500;
+}
+.wsp-cancel:hover{background:rgba(255,77,106,.18)}
+
+/* Indicador discreto durante gravação com Whisper */
+.wsp-indicator{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11.5px;color:var(--textMid);
+  padding:4px 10px;background:rgba(74,154,232,.1);
+  border:1px solid rgba(74,154,232,.2);border-radius:20px;
+  margin-top:8px;
+}
+.wsp-indicator.processing{color:var(--blueBr)}
+.wsp-indicator-dot{
+  width:6px;height:6px;border-radius:50%;background:currentColor;
+  animation:wspPulse 1.2s ease-in-out infinite;
+}
+@keyframes wspPulse{
+  0%,100%{opacity:.4}
+  50%{opacity:1}
+}
 </style>
 </head>
 <body>
@@ -779,14 +833,15 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         <div>
           <div class="cfg-toggle-title">Online</div>
-          <div class="cfg-toggle-sub">No alto-falante, sem fone</div>
+          <div class="cfg-toggle-sub">Meet, Zoom, Teams</div>
         </div>
       </button>
     </div>
     <div id="roomHint" class="cfg-hint hidden">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
-        <strong>Para captar todo mundo:</strong> tire os fones de ouvido e deixe o áudio da reunião tocando no <strong>alto-falante</strong> do dispositivo. O microfone vai captar a sua voz e também o que os outros falarem. Procure um ambiente sem barulho.
+        <div style="margin-bottom:6px"><strong>Como funciona:</strong> ao clicar em Gravar, o navegador pede pra escolher a aba da reunião. Selecione e <strong>marque "Compartilhar áudio"</strong>.</div>
+        <div style="font-size:12px;opacity:.85"><strong>Na primeira vez</strong>, o app baixa um modelo de transcrição de ~150MB (só uma vez, fica salvo). A transcrição aparece a cada 12-15 segundos.</div>
       </div>
     </div>
   </div>
@@ -829,6 +884,21 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   </div>
 </div>
 
+<!-- Overlay de carregamento do modelo Whisper (1ª vez) -->
+<div id="wspOverlay" class="wsp-overlay">
+  <div class="wsp-card">
+    <div class="wsp-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    </div>
+    <div class="wsp-title" id="wspTitle">Preparando a transcrição</div>
+    <div class="wsp-sub" id="wspSub">Baixando o modelo de transcrição (~150MB). Isso acontece só na primeira vez — depois fica salvo no seu dispositivo.</div>
+    <div class="wsp-bar"><div class="wsp-bar-fill" id="wspBarFill"></div></div>
+    <div class="wsp-pct" id="wspPct">Iniciando…</div>
+    <div class="wsp-files" id="wspFiles"></div>
+    <button class="wsp-cancel" onclick="wspCancel()">Cancelar</button>
+  </div>
+</div>
+
 <script>
 // ESTADO
 const $ = id => document.getElementById(id);
@@ -847,9 +917,24 @@ let state = {
   _audioBlob: null,
   _audioStream: null,
   _micStreamCached: null,  // mic persistido entre gravações (permissão única)
+  _displayStream: null,    // stream da aba no modo "online" (reiniciado a cada gravação)
+  _audioCtx: null,
   _dg: null,              // WebSocket Deepgram
   _dgKeepalive: null,
   _dgSpeakerMap: {},      // índice → nome ("Falante 1" etc.)
+  // --- Whisper (transcrição local) ---
+  _wsWorker: null,        // Web Worker carregado sob demanda
+  _wsReady: false,        // modelo já baixado e pronto
+  _wsLoading: false,      // carregamento em andamento
+  _wsCancelled: false,    // usuário cancelou antes de terminar
+  _wsCtx: null,           // AudioContext @ 16kHz
+  _wsSource: null,        // MediaStreamAudioSourceNode
+  _wsProc: null,          // ScriptProcessorNode
+  _wsGainSilent: null,    // gain=0 pra não emitir som
+  _wsPcmBuf: null,        // Float32Array acumulado
+  _wsChunkSamples: 16000 * 14, // ~14s por chunk
+  _wsQueue: 0,            // quantos chunks pendentes no worker
+  _wsSilentStart: null,   // timestamp do início de silêncio (pra cortar chunk antes se tiver pausa longa)
 };
 
 // UTILS
@@ -906,12 +991,6 @@ function saveConfig() {
 }
 
 function setAudioSource(src) {
-  // Se mudou de modo, invalida o cache do mic — a próxima gravação vai
-  // pedir um stream novo com a config correta (eco ligado/desligado).
-  if (state.audioSource !== src && state._micStreamCached) {
-    try { state._micStreamCached.getTracks().forEach(t => t.stop()); } catch {}
-    state._micStreamCached = null;
-  }
   state.audioSource = src;
   applyAudioSourceUI();
   saveConfig();
@@ -947,22 +1026,11 @@ async function startAudioCapture() {
   let micStream = state._micStreamCached;
   const micAlive = micStream && micStream.getAudioTracks().some(t => t.readyState === "live");
   if (!micAlive) {
-    // No modo "Online" (alto-falante), DESLIGAMOS o cancelamento de eco e a
-    // supressão de ruído — caso contrário, o Chrome filtraria a voz dos outros
-    // participantes que vem do alto-falante tratando-a como "eco".
-    // No modo "Presencial", mantemos os dois ligados pra limpar o áudio.
-    const isRoom = state.audioSource === "room";
     micStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: !isRoom,
-        noiseSuppression: !isRoom,
-        autoGainControl: !isRoom,
-        sampleRate: 44100,
-      },
+      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
       video: false,
     });
     state._micStreamCached = micStream;
-    state._micStreamMode = state.audioSource;
   } else {
     // Reabilita as tracks caso estivessem desabilitadas
     micStream.getAudioTracks().forEach(t => { t.enabled = true; });
@@ -971,9 +1039,30 @@ async function startAudioCapture() {
 
   let finalStream = micStream;
 
-  // No modo "Online" o usuário deixa a reunião tocando no alto-falante
-  // sem fone — o microfone capta a voz dele e também o áudio dos outros
-  // saindo pelo speaker. Sem precisar compartilhar aba ou pedir chave.
+  // Modo online: mistura com áudio da aba
+  if (state.audioSource === "room") {
+    try {
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 1 },
+        audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 },
+      });
+      const tabAudioTracks = displayStream.getAudioTracks();
+      if (tabAudioTracks.length > 0) {
+        state._audioCtx = new AudioContext({ sampleRate: 44100 });
+        const dest = state._audioCtx.createMediaStreamDestination();
+        state._audioCtx.createMediaStreamSource(micStream).connect(dest);
+        state._audioCtx.createMediaStreamSource(displayStream).connect(dest);
+        finalStream = dest.stream;
+        state._displayStream = displayStream;
+        displayStream.getVideoTracks().forEach(t => t.stop());
+      } else {
+        displayStream.getTracks().forEach(t => t.stop());
+        showError('Você não marcou "Compartilhar áudio". Vou usar só o microfone.');
+      }
+    } catch (dispErr) {
+      // Usuário cancelou — continua só com mic
+    }
+  }
 
   // Grava se usuário quer salvar o áudio OU se diarização está ligada (precisa do stream)
   const needRecorder = state.saveAudio || dgEnabled();
@@ -993,6 +1082,15 @@ async function startAudioCapture() {
         state._audioBlob = new Blob(state._audioChunks, { type: mimeType });
       }
       // NÃO paramos o mic cacheado — evita novo pedido de permissão
+      // Apenas o display stream (modo online) e o audioCtx
+      if (state._displayStream) {
+        state._displayStream.getTracks().forEach(t => t.stop());
+        state._displayStream = null;
+      }
+      if (state._audioCtx) {
+        try { state._audioCtx.close(); } catch {}
+        state._audioCtx = null;
+      }
       state._audioStream = null;
     };
     state._mediaRecorder.start(500);  // chunks de 500 ms
@@ -1014,6 +1112,11 @@ function resumeAudioCapture() {
 function stopAudioCapture() {
   if (state._mediaRecorder && state._mediaRecorder.state !== "inactive") {
     try { state._mediaRecorder.stop(); } catch {}
+  }
+  // O display stream (modo online) precisa parar sempre
+  if (state._displayStream) {
+    state._displayStream.getTracks().forEach(t => t.stop());
+    state._displayStream = null;
   }
   // ATENÇÃO: NÃO paramos o _micStreamCached aqui — ele é mantido vivo entre
   // gravações para evitar um novo pedido de permissão do navegador.
@@ -1132,6 +1235,363 @@ function renameSpeaker(speakerId) {
 }
 
 
+// ============================
+// WHISPER (transcrição local no navegador, sem chave)
+// ============================
+// Usa @huggingface/transformers v3 rodando em Web Worker.
+// Modelo: onnx-community/whisper-base (multilíngue, ~150MB quantizado).
+// O modelo é baixado uma vez e fica em cache do navegador.
+function whisperLangCode() {
+  const lang = ($("langSel").value || "pt-BR").toLowerCase();
+  if (lang.startsWith("pt")) return "portuguese";
+  if (lang.startsWith("es")) return "spanish";
+  return "english";
+}
+
+function createWhisperWorker() {
+  const src = `
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.3';
+env.allowLocalModels = false;
+env.allowRemoteModels = true;
+
+let transcriber = null;
+const MODEL_ID = 'onnx-community/whisper-base';
+
+async function loadModel() {
+  const progressCb = (p) => self.postMessage({ type: 'progress', payload: p });
+  // Tenta WebGPU primeiro (bem mais rápido quando disponível)
+  try {
+    transcriber = await pipeline('automatic-speech-recognition', MODEL_ID, {
+      dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
+      device: 'webgpu',
+      progress_callback: progressCb,
+    });
+    self.postMessage({ type: 'loaded', payload: { backend: 'webgpu' } });
+    return;
+  } catch (gpuErr) {
+    // cai pro WASM
+  }
+  try {
+    transcriber = await pipeline('automatic-speech-recognition', MODEL_ID, {
+      dtype: 'q8',
+      progress_callback: progressCb,
+    });
+    self.postMessage({ type: 'loaded', payload: { backend: 'wasm' } });
+  } catch (err) {
+    self.postMessage({ type: 'error', payload: String(err && err.message || err) });
+  }
+}
+
+self.onmessage = async (e) => {
+  const msg = e.data || {};
+  if (msg.type === 'load') {
+    await loadModel();
+  } else if (msg.type === 'transcribe') {
+    if (!transcriber) {
+      self.postMessage({ type: 'error', payload: 'model not loaded', id: msg.payload.id });
+      return;
+    }
+    try {
+      const out = await transcriber(msg.payload.audio, {
+        language: msg.payload.language,
+        task: 'transcribe',
+        return_timestamps: false,
+      });
+      const text = (out && out.text ? String(out.text) : '').trim();
+      self.postMessage({ type: 'result', payload: { text, id: msg.payload.id } });
+    } catch (err) {
+      self.postMessage({ type: 'error', payload: String(err && err.message || err), id: msg.payload.id });
+    }
+  }
+};
+`;
+  const blob = new Blob([src], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  const w = new Worker(url, { type: "module" });
+  // Libera a URL depois que o worker já carregou o script
+  setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 30000);
+  return w;
+}
+
+// Ensure worker existe e modelo está carregado. Mostra overlay enquanto baixa.
+async function whisperEnsureLoaded() {
+  if (state._wsReady) return true;
+  if (state._wsLoading) {
+    // Já está carregando — espera terminar
+    return new Promise(resolve => {
+      const check = setInterval(() => {
+        if (state._wsReady) { clearInterval(check); resolve(true); }
+        else if (!state._wsLoading) { clearInterval(check); resolve(false); }
+      }, 200);
+    });
+  }
+  state._wsLoading = true;
+  state._wsCancelled = false;
+
+  // Cria worker se ainda não existe
+  if (!state._wsWorker) {
+    try {
+      state._wsWorker = createWhisperWorker();
+    } catch (e) {
+      state._wsLoading = false;
+      showError("Não foi possível iniciar a transcrição local. Seu navegador pode não suportar. Tente Chrome/Edge atualizado.");
+      return false;
+    }
+    state._wsWorker.onmessage = onWhisperMessage;
+    state._wsWorker.onerror = (e) => {
+      console.error("[whisper worker error]", e);
+    };
+  }
+
+  wspShowOverlay();
+  state._wsWorker.postMessage({ type: "load" });
+
+  return new Promise(resolve => {
+    state._wsLoadResolve = resolve;
+  });
+}
+
+function onWhisperMessage(e) {
+  const msg = e.data || {};
+  if (msg.type === "progress") {
+    wspUpdateProgress(msg.payload);
+  } else if (msg.type === "loaded") {
+    state._wsReady = true;
+    state._wsLoading = false;
+    wspHideOverlay();
+    if (state._wsLoadResolve) { state._wsLoadResolve(true); state._wsLoadResolve = null; }
+  } else if (msg.type === "error") {
+    if (state._wsLoading) {
+      state._wsLoading = false;
+      state._wsReady = false;
+      wspHideOverlay();
+      if (!state._wsCancelled) {
+        showError("Falha ao preparar a transcrição: " + (msg.payload || "erro desconhecido"));
+      }
+      if (state._wsLoadResolve) { state._wsLoadResolve(false); state._wsLoadResolve = null; }
+    } else {
+      // Erro durante transcrição de um chunk — não é fatal, só pula
+      console.warn("[whisper chunk error]", msg.payload);
+      state._wsQueue = Math.max(0, state._wsQueue - 1);
+      updateWhisperIndicator();
+    }
+  } else if (msg.type === "result") {
+    state._wsQueue = Math.max(0, state._wsQueue - 1);
+    const text = (msg.payload && msg.payload.text || "").trim();
+    if (text && !isNoiseText(text)) {
+      state.entries.push({ text, ts: nowClock() });
+      renderTranscript();
+    }
+    updateWhisperIndicator();
+  }
+}
+
+// Whisper às vezes alucina textos em trechos silenciosos (ex: "Legendado por...", ". . .")
+// Filtramos os mais comuns pra não poluir a transcrição.
+function isNoiseText(text) {
+  const t = text.toLowerCase().replace(/[.,!?…\-\s]+/g, " ").trim();
+  if (!t) return true;
+  if (t.length < 2) return true;
+  const noise = [
+    "legendado por", "legendas pela comunidade", "obrigado por assistir",
+    "obrigada por assistir", "subtitles by", "thanks for watching",
+    "amara org", "gracias por ver", "suscribete", "inscreva se no canal",
+  ];
+  return noise.some(n => t.includes(n));
+}
+
+function wspShowOverlay() {
+  $("wspOverlay").classList.add("on");
+  $("wspBarFill").style.width = "0%";
+  $("wspPct").textContent = "Iniciando…";
+  $("wspFiles").textContent = "";
+}
+function wspHideOverlay() {
+  $("wspOverlay").classList.remove("on");
+}
+function wspCancel() {
+  state._wsCancelled = true;
+  state._wsLoading = false;
+  state._wsReady = false;
+  if (state._wsWorker) {
+    try { state._wsWorker.terminate(); } catch {}
+    state._wsWorker = null;
+  }
+  // Limpa estado residual de progresso pra próxima tentativa começar limpa
+  Object.keys(_wspFiles).forEach(k => delete _wspFiles[k]);
+  wspHideOverlay();
+  if (state._wsLoadResolve) { state._wsLoadResolve(false); state._wsLoadResolve = null; }
+}
+
+// Estado do progresso por arquivo. Whisper baixa vários arquivos (tokenizer, config, encoder, decoder).
+const _wspFiles = {};
+function wspUpdateProgress(p) {
+  if (!p || !p.status) return;
+  const file = p.file || p.name || "modelo";
+  if (p.status === "progress") {
+    _wspFiles[file] = {
+      progress: p.progress || 0,
+      loaded: p.loaded || 0,
+      total: p.total || 0,
+    };
+  } else if (p.status === "done") {
+    _wspFiles[file] = { progress: 100, loaded: (_wspFiles[file] && _wspFiles[file].total) || 0, total: (_wspFiles[file] && _wspFiles[file].total) || 0, done: true };
+  } else if (p.status === "ready") {
+    // final
+  }
+
+  // Calcula progresso agregado
+  const files = Object.values(_wspFiles);
+  if (files.length === 0) return;
+  let totalLoaded = 0, totalSize = 0, avgProgress = 0;
+  files.forEach(f => {
+    if (f.total > 0) { totalLoaded += f.loaded; totalSize += f.total; }
+    avgProgress += f.progress;
+  });
+  avgProgress = avgProgress / files.length;
+
+  $("wspBarFill").style.width = avgProgress + "%";
+
+  if (totalSize > 0) {
+    const mbLoaded = (totalLoaded / 1024 / 1024).toFixed(1);
+    const mbTotal = (totalSize / 1024 / 1024).toFixed(1);
+    $("wspPct").textContent = `${mbLoaded} MB / ${mbTotal} MB  (${Math.round(avgProgress)}%)`;
+  } else {
+    $("wspPct").textContent = `${Math.round(avgProgress)}%`;
+  }
+
+  // Mostra nome do arquivo atual sendo baixado
+  const active = Object.keys(_wspFiles).filter(k => !_wspFiles[k].done);
+  if (active.length > 0) {
+    $("wspFiles").textContent = active[active.length - 1];
+  }
+}
+
+// Inicia a captura de PCM @ 16kHz pra alimentar o Whisper
+function whisperStartCapture(mixedStream) {
+  // AudioContext já em 16kHz pra evitar downsample manual
+  try {
+    state._wsCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  } catch {
+    state._wsCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  state._wsSource = state._wsCtx.createMediaStreamSource(mixedStream);
+
+  // ScriptProcessorNode é deprecated mas universalmente suportado.
+  // 4096 samples @ 16kHz = ~256ms, latência ok.
+  const bufSize = 4096;
+  state._wsProc = state._wsCtx.createScriptProcessor(bufSize, 1, 1);
+  state._wsPcmBuf = new Float32Array(0);
+
+  const needSR = state._wsCtx.sampleRate;
+  const resampleNeeded = Math.abs(needSR - 16000) > 1;
+
+  state._wsProc.onaudioprocess = (ev) => {
+    if (!state.rec) return;
+    const input = ev.inputBuffer.getChannelData(0);
+    let samples = input;
+    if (resampleNeeded) {
+      samples = downsampleTo16k(input, needSR);
+    }
+    // Acumula
+    const merged = new Float32Array(state._wsPcmBuf.length + samples.length);
+    merged.set(state._wsPcmBuf);
+    merged.set(samples, state._wsPcmBuf.length);
+    state._wsPcmBuf = merged;
+
+    // Quando buffer atinge ~14s, envia pra transcrever
+    if (state._wsPcmBuf.length >= state._wsChunkSamples) {
+      whisperFlushChunk();
+    }
+  };
+
+  // Precisa conectar ao destination pra o processor rodar, mas com ganho 0 pra não tocar o áudio
+  state._wsGainSilent = state._wsCtx.createGain();
+  state._wsGainSilent.gain.value = 0;
+  state._wsSource.connect(state._wsProc);
+  state._wsProc.connect(state._wsGainSilent);
+  state._wsGainSilent.connect(state._wsCtx.destination);
+
+  updateWhisperIndicator();
+}
+
+function downsampleTo16k(buffer, sourceRate) {
+  if (sourceRate === 16000) return buffer;
+  const ratio = sourceRate / 16000;
+  const newLen = Math.floor(buffer.length / ratio);
+  const out = new Float32Array(newLen);
+  let offsetOut = 0, offsetIn = 0;
+  while (offsetOut < newLen) {
+    const nextOffsetIn = Math.round((offsetOut + 1) * ratio);
+    let accum = 0, count = 0;
+    for (let i = offsetIn; i < nextOffsetIn && i < buffer.length; i++) {
+      accum += buffer[i];
+      count++;
+    }
+    out[offsetOut] = count > 0 ? accum / count : 0;
+    offsetOut++;
+    offsetIn = nextOffsetIn;
+  }
+  return out;
+}
+
+// Envia o buffer acumulado pro worker transcrever
+function whisperFlushChunk(forceEvenIfSmall) {
+  if (!state._wsWorker || !state._wsReady) return;
+  if (!state._wsPcmBuf || state._wsPcmBuf.length === 0) return;
+  if (!forceEvenIfSmall && state._wsPcmBuf.length < 16000 * 2) return; // mínimo 2s
+
+  const chunk = state._wsPcmBuf;
+  state._wsPcmBuf = new Float32Array(0);
+
+  state._wsQueue++;
+  updateWhisperIndicator();
+
+  state._wsWorker.postMessage({
+    type: "transcribe",
+    payload: {
+      audio: chunk,
+      language: whisperLangCode(),
+      id: Date.now() + Math.random(),
+    }
+  }, [chunk.buffer]);
+}
+
+function whisperStopCapture() {
+  // Envia o que sobrar
+  if (state._wsPcmBuf && state._wsPcmBuf.length > 0) {
+    whisperFlushChunk(true);
+  }
+  try { if (state._wsProc) state._wsProc.disconnect(); } catch {}
+  try { if (state._wsSource) state._wsSource.disconnect(); } catch {}
+  try { if (state._wsGainSilent) state._wsGainSilent.disconnect(); } catch {}
+  try { if (state._wsCtx) state._wsCtx.close(); } catch {}
+  state._wsProc = null;
+  state._wsSource = null;
+  state._wsGainSilent = null;
+  state._wsCtx = null;
+  state._wsPcmBuf = null;
+  updateWhisperIndicator();
+}
+
+function updateWhisperIndicator() {
+  const ind = $("wspIndicator");
+  if (!ind) return;
+  if (!state.rec && state._wsQueue === 0) {
+    ind.classList.add("hidden");
+    return;
+  }
+  ind.classList.remove("hidden");
+  if (state._wsQueue > 0) {
+    ind.classList.add("processing");
+    ind.innerHTML = '<span class="wsp-indicator-dot"></span> Transcrevendo… (' + state._wsQueue + ' em fila)';
+  } else {
+    ind.classList.remove("processing");
+    ind.innerHTML = '<span class="wsp-indicator-dot"></span> Ouvindo…';
+  }
+}
+
+
 // - idle (rec=false, paused=false): botão "Gravar" vermelho
 // - recording (rec=true, paused=false): botão "Pausar" (vermelho pulsando) + "Parar"
 // - paused (rec=false, paused=true): botão "Continuar" (verde) + "Parar"
@@ -1143,16 +1603,29 @@ async function startRec() {
   // Se resumindo uma pausa, usa state.pausedElapsed
   const isResume = state.paused;
 
-  // Garante que ainda temos permissão e infra de áudio (captura o microfone / aba)
+  // Decide qual motor de transcrição vamos usar
+  //   modo "mic"  → Web Speech API (rápido, nativo, sem download)
+  //   modo "room" + Deepgram ativo → Deepgram (qualidade máxima, precisa chave)
+  //   modo "room" sem Deepgram → Whisper local (sem chave, download de ~150MB na 1ª vez)
+  const useWhisper = !isResume && state.audioSource === "room" && !dgEnabled();
+
   try {
     if (!isResume) {
-      // Nova gravação: precisamos iniciar captura de áudio se necessário
+      // Se vai usar Whisper, garante modelo carregado ANTES de pedir aba pro usuário
+      // (senão ele escolhe a aba e fica esperando o download com a aba aberta à toa)
+      if (useWhisper) {
+        const ok = await whisperEnsureLoaded();
+        if (!ok) return; // usuário cancelou ou erro
+      }
+
+      // Nova gravação: inicia captura de áudio se necessário
       const needAudio = state.saveAudio || dgEnabled() || state.audioSource === "room";
+      let finalStream = null;
       if (needAudio) {
         try {
-          await startAudioCapture();
+          finalStream = await startAudioCapture();
         } catch (audioErr) {
-          if (audioErr.name === "NotAllowedError" || audioErr.message.includes("denied")) {
+          if (audioErr.name === "NotAllowedError" || (audioErr.message && audioErr.message.includes("denied"))) {
             showError("O microfone está bloqueado. Libere o microfone nas permissões do navegador.");
             return;
           }
@@ -1161,8 +1634,14 @@ async function startRec() {
         }
       }
 
-      // Se diarização está ligada, conecta com Deepgram
-      if (dgEnabled()) {
+      // Conecta o motor de transcrição apropriado
+      if (useWhisper) {
+        if (!finalStream) {
+          showError("Falha ao capturar áudio.");
+          return;
+        }
+        whisperStartCapture(finalStream);
+      } else if (dgEnabled()) {
         try {
           await dgStart();
         } catch (dgErr) {
@@ -1174,9 +1653,13 @@ async function startRec() {
     } else {
       // Retomando pausa
       resumeAudioCapture();
-      // Se estava com Deepgram, tenta reconectar
       if (dgEnabled() && !state._dg) {
         try { await dgStart(); } catch {}
+      }
+      // Whisper: retomar captura exige recriar AudioContext — por simplicidade,
+      // mantemos o buffer/contexto vivos durante o pause (o suspend/resume do AudioContext cuida disso)
+      if (state._wsCtx && state._wsCtx.state === "suspended") {
+        try { await state._wsCtx.resume(); } catch {}
       }
     }
   } catch (e) {
@@ -1184,8 +1667,9 @@ async function startRec() {
     return;
   }
 
-  // Web Speech API — só usamos quando diarização NÃO está ligada (Deepgram já faz transcrição)
-  if (!dgEnabled()) {
+  // Web Speech API — só pro modo "mic" (modo presencial) e quando Deepgram não está ligado
+  const useWebSpeech = !useWhisper && !dgEnabled();
+  if (useWebSpeech) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       showError("Seu navegador não aceita transcrição. Use o Google Chrome ou o Microsoft Edge.");
@@ -1253,6 +1737,7 @@ async function startRec() {
   $("moreExports").classList.add("hidden");
   const fp = $("finishPanel"); if (fp) fp.classList.add("hidden");
   updateRecUI();
+  updateWhisperIndicator();
 }
 
 function pauseRec() {
@@ -1264,6 +1749,10 @@ function pauseRec() {
   }
   pauseAudioCapture();
   // Não fechamos o Deepgram no pause — ele tem KeepAlive
+  // Whisper: suspende o AudioContext (fica pronto pra retomar)
+  if (state._wsCtx && state._wsCtx.state === "running") {
+    try { state._wsCtx.suspend(); } catch {}
+  }
   clearInterval(state.timer);
   state.timer = null;
   state.rec = false;
@@ -1272,6 +1761,7 @@ function pauseRec() {
   state.pausedElapsed = state.elapsed;
   updateRecUI();
   renderTranscript();
+  updateWhisperIndicator();
 }
 
 function resumeRec() {
@@ -1296,6 +1786,8 @@ function finishRec() {
   }
   state.recognition = null;
   dgStop();
+  // Whisper: envia o último chunk acumulado e fecha o AudioContext
+  whisperStopCapture();
   stopAudioCapture();
   clearInterval(state.timer);
   state.timer = null;
@@ -1308,10 +1800,15 @@ function finishRec() {
   updateRecUI();
   renderTranscript();
 
-  // Aguarda um pouco pra captar resultados finais pendentes
-  // (Web Speech pode emitir onresult após stop; Deepgram idem)
-  setTimeout(() => {
-    // Incorpora mais uma vez o interim se algo ainda veio
+  // Aguarda um pouco pra captar resultados finais pendentes.
+  // Com Whisper, precisamos esperar a fila do worker esvaziar (pode demorar).
+  const waitForWhisper = () => {
+    // Se ainda tem chunks na fila do Whisper, espera mais um pouco
+    if (state._wsQueue > 0) {
+      setTimeout(waitForWhisper, 400);
+      return;
+    }
+
     if (state.interim && state.interim.trim()) {
       state.entries.push({ text: state.interim.trim(), ts: nowClock() });
       state.interim = "";
@@ -1323,18 +1820,17 @@ function finishRec() {
       $("moreExports").classList.remove("hidden");
       updateRecUI();
       renderTranscript();
-      // Rola até o painel de opções
       setTimeout(() => {
         const panel = $("finishPanel");
         if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 120);
     } else {
-      // Sem conteúdo — esconde o painel de volta
       $("finishPanel").classList.add("hidden");
       updateRecUI();
       renderTranscript();
     }
-  }, 500);
+  };
+  setTimeout(waitForWhisper, 500);
 }
 
 function hardStop() {
@@ -1345,6 +1841,7 @@ function hardStop() {
     state.recognition = null;
   }
   dgStop();
+  whisperStopCapture();
   stopAudioCapture();
   releaseMicStream();
   clearInterval(state.timer);
@@ -1355,7 +1852,9 @@ function hardStop() {
   state.pausedElapsed = 0;
   state._audioBlob = null;
   state._audioChunks = [];
+  state._wsQueue = 0;
   updateRecUI();
+  updateWhisperIndicator();
 }
 
 function saveCurrentSession() {
@@ -1689,6 +2188,7 @@ function updateRecUI() {
         <span class="rec-timer-num">${fmtTime(state.elapsed)}</span>
       </div>
       <div class="rec-status">Gravando — fale normalmente</div>
+      <div id="wspIndicator" class="wsp-indicator hidden"></div>
       <div class="rec-dual">
         <button class="rec-action pause" onclick="pauseRec()">
           <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
@@ -1701,6 +2201,8 @@ function updateRecUI() {
         ${manageButtonHTML()}
       </div>
     `;
+    // Re-aplica o estado do indicador depois que o innerHTML substituiu ele
+    updateWhisperIndicator();
   } else if (state.paused) {
     // PAUSADO — mostra timer (cinza) + "Continuar", "Finalizar" e "Gerenciar"
     wrap.innerHTML = `
