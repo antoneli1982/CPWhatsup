@@ -271,6 +271,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .transcript{
   background:var(--surface);border:1px solid var(--border);border-radius:14px;
   padding:18px 20px;margin-bottom:20px;min-height:120px;
+  max-height:60vh;overflow-y:auto;scroll-behavior:smooth;
 }
 .transcript.empty{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
@@ -278,9 +279,10 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 }
 .transcript.empty .emoji{font-size:32px;opacity:.6}
 .transcript.empty p{font-size:14px;color:var(--textMid);max-width:320px;line-height:1.55}
-.tr-entry{padding:10px 0;border-bottom:1px solid rgba(74,154,232,.08);font-size:15px;line-height:1.65}
+.tr-entry{padding:10px 0;border-bottom:1px solid rgba(74,154,232,.08);font-size:15px;line-height:1.65;animation:trEntryIn .25s ease}
 .tr-entry:last-child{border-bottom:none}
-.tr-entry.interim{color:var(--textMid);font-style:italic}
+.tr-entry.interim{color:var(--textMid);font-style:italic;background:rgba(74,154,232,.04);border-radius:6px;padding-left:8px;padding-right:8px;animation:none}
+@keyframes trEntryIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 .tr-time{font-size:11px;color:var(--textDim);font-weight:500;margin-right:10px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .tr-speaker{font-size:12.5px;font-weight:600;margin-right:10px;cursor:pointer;transition:opacity .15s}
 .tr-speaker:hover{opacity:.7;text-decoration:underline;text-underline-offset:3px}
@@ -817,6 +819,26 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
     </select>
   </div>
 
+  <!-- Contexto/área da reunião (opcional) -->
+  <div class="cfg-field">
+    <label for="ctxSel">Assunto da reunião <span style="font-weight:400;color:var(--textDim);font-size:11px">(opcional)</span></label>
+    <div class="desc">Ajuda a transcrição a entender termos técnicos da área e corrigir palavras quando há ruído ou pronúncia parecida.</div>
+    <select id="ctxSel" onchange="saveConfig()">
+      <option value="none">Genérico (sem contexto)</option>
+      <option value="informal">Conversa informal</option>
+      <option value="eng_industrial">Engenharia Industrial</option>
+      <option value="eng_civil">Engenharia Civil</option>
+      <option value="saude">Saúde / Medicina</option>
+      <option value="marketing">Marketing / Publicidade</option>
+      <option value="juridico">Jurídico / Direito</option>
+      <option value="financeiro">Financeiro / Contábil</option>
+      <option value="tecnologia">Tecnologia / TI</option>
+      <option value="educacao">Educação / Acadêmico</option>
+      <option value="vendas">Vendas / Comercial</option>
+      <option value="rh">RH / Pessoas</option>
+    </select>
+  </div>
+
   <!-- Tipo de reunião -->
   <div class="cfg-section">
     <div class="cfg-section-title">Tipo de reunião</div>
@@ -841,7 +863,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
         <div style="margin-bottom:6px"><strong>Como funciona:</strong> ao clicar em Gravar, o navegador pede pra escolher a aba da reunião. Selecione e <strong>marque "Compartilhar áudio"</strong>.</div>
-        <div style="font-size:12px;opacity:.85"><strong>Na primeira vez</strong>, o app baixa um modelo de transcrição de ~150MB (só uma vez, fica salvo). A transcrição aparece a cada 12-15 segundos.</div>
+        <div style="font-size:12px;opacity:.85"><strong>Na primeira vez</strong>, o app baixa um modelo de transcrição de ~150MB (só uma vez, fica salvo). A transcrição aparece a cada 6-8 segundos.</div>
       </div>
     </div>
   </div>
@@ -900,6 +922,252 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 </div>
 
 <script>
+// ============================
+// DICIONÁRIO DE CONTEXTOS / ÁREAS
+// ============================
+// Termos técnicos por área. Quando o usuário escolhe um contexto, esses termos
+// são usados para "puxar" palavras parecidas no som (homófonos / quase-homófonos)
+// para a forma correta. Funciona como um pequeno corretor pós-transcrição.
+// As listas focam em palavras que motores de fala costumam errar.
+const CONTEXT_VOCAB = {
+  none: [],
+  informal: [
+    // gírias e expressões coloquiais comuns que o reconhecedor às vezes formaliza demais
+    "tipo", "beleza", "valeu", "tranquilo", "rolê", "galera", "mano", "véi",
+    "tá ligado", "saca só", "cara", "pô", "nossa", "caraca", "massa",
+  ],
+  eng_industrial: [
+    "lean manufacturing", "kaizen", "kanban", "just in time", "JIT",
+    "OEE", "MTBF", "MTTR", "takt time", "lead time", "cycle time",
+    "PCP", "MRP", "ERP", "WMS", "SCADA", "PLC", "CLP",
+    "setup", "gargalo", "throughput", "downtime", "uptime",
+    "Six Sigma", "DMAIC", "PDCA", "5S", "FMEA", "Ishikawa",
+    "ISO 9001", "ISO 14001", "ISO 45001", "TPM", "SMED",
+    "indicador", "produtividade", "eficiência", "retrabalho", "refugo",
+    "manutenção preventiva", "manutenção preditiva", "manutenção corretiva",
+    "linha de produção", "célula de manufatura", "supply chain",
+  ],
+  eng_civil: [
+    "concreto armado", "concreto protendido", "concreto magro", "fck",
+    "viga", "pilar", "laje", "fundação", "sapata", "estaca", "radier",
+    "cintamento", "alvenaria", "argamassa", "chapisco", "reboco",
+    "ART", "RRT", "CREA", "CAU", "ABNT", "NBR 6118", "NBR 9050",
+    "BIM", "Revit", "AutoCAD", "SketchUp", "memorial descritivo",
+    "planta baixa", "corte", "fachada", "implantação", "cobertura",
+    "tubulação hidráulica", "tubulação elétrica", "esgoto", "águas pluviais",
+    "habite-se", "alvará", "RT", "obra", "canteiro", "cronograma físico-financeiro",
+    "EAP", "MS Project", "curva S", "BDI", "orçamento sintético", "composição de custos",
+  ],
+  saude: [
+    "anamnese", "diagnóstico", "prognóstico", "prescrição", "posologia",
+    "dose", "miligramas", "mg", "ml", "via oral", "endovenoso", "intramuscular",
+    "subcutâneo", "tópico", "pressão arterial", "frequência cardíaca",
+    "saturação", "glicemia", "hemoglobina", "hematócrito", "leucócitos",
+    "tomografia", "ressonância magnética", "raio-X", "ultrassom", "exame de sangue",
+    "hipertensão", "diabetes", "dislipidemia", "AVC", "IAM", "DPOC",
+    "antibiótico", "anti-inflamatório", "analgésico", "corticoide",
+    "CID", "SUS", "ANS", "ANVISA", "prontuário", "evolução", "alta hospitalar",
+    "encaminhamento", "exame complementar", "biópsia", "histopatológico",
+  ],
+  marketing: [
+    "branding", "brand", "awareness", "lead", "leads", "MQL", "SQL",
+    "funil de vendas", "topo de funil", "fundo de funil", "CTA",
+    "conversão", "engajamento", "alcance", "impressões", "CTR", "CPC", "CPM", "CPA",
+    "ROI", "ROAS", "LTV", "CAC", "churn", "NPS", "CSAT",
+    "SEO", "SEM", "Google Ads", "Meta Ads", "Facebook Ads", "Instagram Ads", "TikTok Ads",
+    "inbound", "outbound", "content marketing", "marketing de conteúdo",
+    "persona", "buyer persona", "jornada do cliente", "copy", "copywriting",
+    "performance", "remarketing", "retargeting", "pixel", "UTM",
+    "release", "press release", "assessoria de imprensa", "influencer", "creator",
+  ],
+  juridico: [
+    "petição inicial", "contestação", "réplica", "tréplica", "contrarrazões",
+    "agravo de instrumento", "recurso ordinário", "recurso especial", "recurso extraordinário",
+    "habeas corpus", "mandado de segurança", "mandado de injunção",
+    "tutela antecipada", "liminar", "sentença", "acórdão", "trânsito em julgado",
+    "autor", "réu", "exequente", "executado", "litisconsorte",
+    "Código Civil", "Código Penal", "CLT", "CDC", "CPC", "CPP",
+    "súmula", "jurisprudência", "ementa", "voto", "relator",
+    "OAB", "STF", "STJ", "TST", "TJ", "TRT", "TRF", "MP", "MPF",
+    "honorários sucumbenciais", "honorários contratuais", "custas processuais",
+    "audiência de conciliação", "audiência de instrução",
+  ],
+  financeiro: [
+    "DRE", "balanço patrimonial", "fluxo de caixa", "DFC", "DMPL",
+    "ativo circulante", "ativo não circulante", "passivo circulante", "passivo não circulante",
+    "patrimônio líquido", "EBITDA", "EBIT", "lucro líquido", "lucro bruto", "margem",
+    "receita líquida", "receita bruta", "CMV", "CPV", "despesas operacionais",
+    "depreciação", "amortização", "provisão", "PDD",
+    "TIR", "VPL", "payback", "WACC", "CAPM", "alavancagem",
+    "DRE gerencial", "centro de custo", "rateio",
+    "ICMS", "ISS", "PIS", "COFINS", "IRPJ", "CSLL", "IRRF", "INSS", "FGTS",
+    "Simples Nacional", "Lucro Presumido", "Lucro Real",
+    "SPED", "ECD", "ECF", "EFD", "DCTF", "DIRF",
+  ],
+  tecnologia: [
+    "API", "REST", "GraphQL", "endpoint", "webhook", "JSON", "XML",
+    "frontend", "backend", "fullstack", "DevOps", "DevSecOps", "SRE",
+    "CI/CD", "pipeline", "deploy", "rollback", "feature flag",
+    "Docker", "Kubernetes", "container", "microsserviço", "monolito",
+    "AWS", "Azure", "GCP", "cloud", "on-premise",
+    "Git", "GitHub", "GitLab", "branch", "merge", "pull request", "commit",
+    "JavaScript", "TypeScript", "Python", "Java", "Go", "Rust", "C#",
+    "React", "Vue", "Angular", "Next.js", "Node.js", "Django", "Flask", "Spring",
+    "SQL", "NoSQL", "PostgreSQL", "MySQL", "MongoDB", "Redis",
+    "frontend", "backend", "scrum", "sprint", "backlog", "kanban", "daily",
+    "MVP", "PoC", "stakeholder", "product owner", "tech lead",
+    "bug", "hotfix", "refactor", "code review", "tech debt", "débito técnico",
+  ],
+  educacao: [
+    "PPP", "BNCC", "PCN", "LDB", "ENEM", "SAEB", "IDEB",
+    "ementa", "plano de aula", "plano de ensino", "currículo", "matriz curricular",
+    "competência", "habilidade", "objeto de conhecimento", "objetivo de aprendizagem",
+    "ensino fundamental", "ensino médio", "ensino superior", "EJA",
+    "graduação", "pós-graduação", "lato sensu", "stricto sensu", "mestrado", "doutorado",
+    "TCC", "monografia", "dissertação", "tese", "artigo científico",
+    "ABNT", "referência bibliográfica", "citação direta", "citação indireta",
+    "metodologia ativa", "PBL", "aprendizagem baseada em projetos", "sala de aula invertida",
+    "avaliação formativa", "avaliação somativa", "rubrica",
+    "MEC", "CAPES", "CNPq", "INEP", "Lattes",
+  ],
+  vendas: [
+    "pipeline", "funil", "lead", "leads", "MQL", "SQL", "prospect",
+    "prospecção", "qualificação", "discovery", "descoberta", "objeção", "fechamento",
+    "follow-up", "cadência", "outbound", "inbound", "cold call", "cold mail",
+    "ICP", "buyer persona", "decisor", "influenciador", "champion",
+    "BANT", "GPCT", "SPIN", "Sandler", "Challenger", "consultivo",
+    "CRM", "Salesforce", "HubSpot", "Pipedrive", "RD Station",
+    "ticket médio", "LTV", "CAC", "churn", "upsell", "cross-sell",
+    "proposta comercial", "contrato", "SLA", "PoC", "trial",
+    "comissão", "meta", "quota", "ramp-up", "forecast", "previsão de vendas",
+    "win rate", "taxa de conversão",
+  ],
+  rh: [
+    "recrutamento", "seleção", "R&S", "headhunter", "headhunting",
+    "onboarding", "offboarding", "integração",
+    "PCMSO", "PPRA", "PGR", "CIPA", "SESMT", "NR", "NR-12", "NR-35",
+    "ASO", "atestado de saúde ocupacional", "exame admissional", "exame demissional",
+    "CLT", "PJ", "estágio", "jovem aprendiz", "terceirizado",
+    "férias", "13º salário", "FGTS", "INSS", "vale-transporte", "vale-refeição",
+    "rescisão", "aviso prévio", "homologação",
+    "PDI", "plano de desenvolvimento individual", "feedback", "1:1", "one on one",
+    "9-box", "nine box", "performance review", "avaliação de desempenho",
+    "engajamento", "clima organizacional", "pesquisa de clima", "eNPS",
+    "T&D", "treinamento e desenvolvimento", "LNT", "trilha de aprendizagem",
+    "C&B", "remuneração", "PLR", "ICP", "cargos e salários",
+    "cultura organizacional", "valores", "DHO",
+  ],
+};
+
+// Constrói um índice de "som → forma correta" para o contexto escolhido.
+// Usa uma normalização sonora simples (remove acentos, baixa caixa) para casar
+// palavras que o reconhecedor pode ter escrito de forma errada mas com som parecido.
+let _ctxIndex = null;   // Map<string, string>  (chave normalizada → termo correto)
+let _ctxKey = null;     // qual contexto está indexado no momento
+
+function ctxNorm(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildContextIndex(ctxKey) {
+  if (_ctxIndex && _ctxKey === ctxKey) return _ctxIndex;
+  const list = CONTEXT_VOCAB[ctxKey] || [];
+  const map = new Map();
+  list.forEach(term => {
+    const norm = ctxNorm(term);
+    if (norm && !map.has(norm)) map.set(norm, term);
+    // Variantes também — termo só tem 1 palavra
+    if (norm && !norm.includes(" ") && !map.has(norm)) map.set(norm, term);
+  });
+  _ctxIndex = map;
+  _ctxKey = ctxKey;
+  return map;
+}
+
+// Distância de edição "leve" (Levenshtein limitada) para comparar palavras curtas.
+// Retorna a distância ou um valor grande se ultrapassar o limite (early exit).
+function editDist(a, b, maxDist) {
+  if (a === b) return 0;
+  const la = a.length, lb = b.length;
+  if (Math.abs(la - lb) > maxDist) return maxDist + 1;
+  if (la === 0) return lb;
+  if (lb === 0) return la;
+  let prev = new Array(lb + 1);
+  let cur = new Array(lb + 1);
+  for (let j = 0; j <= lb; j++) prev[j] = j;
+  for (let i = 1; i <= la; i++) {
+    cur[0] = i;
+    let rowMin = cur[0];
+    for (let j = 1; j <= lb; j++) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > maxDist) return maxDist + 1;
+    [prev, cur] = [cur, prev];
+  }
+  return prev[lb];
+}
+
+// Aplica correção de termos técnicos no texto transcrito.
+// Estratégia em 2 passos:
+//  1) Procura por expressões EXATAS (multi-palavra) do dicionário no texto.
+//  2) Para palavras isoladas com 4+ letras, busca o termo do dicionário mais próximo
+//     em distância de edição (limite proporcional ao tamanho da palavra).
+function applyContextCorrection(text) {
+  if (!text) return text;
+  const ctx = (state.contextArea || "none");
+  if (ctx === "none") return text;
+  const idx = buildContextIndex(ctx);
+  if (!idx || idx.size === 0) return text;
+
+  let out = text;
+
+  // Passo 1: substituições multi-palavra. Se o termo correto contém espaço,
+  // procura o padrão normalizado no texto e substitui mantendo capitalização original.
+  for (const [norm, term] of idx.entries()) {
+    if (!norm.includes(" ")) continue;
+    // regex insensível a acento/caixa
+    const tokens = norm.split(" ").map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    // Aceita acentos e variações de caixa entre as palavras
+    const pattern = new RegExp("\\b" + tokens.join("[\\s]+") + "\\b", "gi");
+    out = out.replace(pattern, () => term);
+  }
+
+  // Passo 2: substituições de palavra isolada (fuzzy match leve).
+  // Tokeniza preservando espaços/pontuação, processa cada token-palavra.
+  out = out.replace(/[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9-]+/g, (word) => {
+    if (word.length < 4) return word;          // muito curta, evita falso positivo
+    if (/^\d/.test(word)) return word;         // começa com número
+    const wn = ctxNorm(word);
+    if (!wn) return word;
+    // Match exato primeiro
+    if (idx.has(wn)) {
+      const correct = idx.get(wn);
+      // Só substitui se o "correto" tem grafia diferente da original (acentos, caixa, etc)
+      return correct === word ? word : correct;
+    }
+    // Match aproximado para palavras de 5+ letras
+    if (word.length < 5) return word;
+    const maxDist = word.length <= 6 ? 1 : (word.length <= 9 ? 2 : 2);
+    let best = null, bestDist = maxDist + 1;
+    for (const [norm, term] of idx.entries()) {
+      if (norm.includes(" ")) continue;          // multi-palavra já foi
+      if (Math.abs(norm.length - wn.length) > maxDist) continue;
+      const d = editDist(wn, norm, maxDist);
+      if (d < bestDist) { bestDist = d; best = term; if (d === 0) break; }
+    }
+    return best && bestDist <= maxDist ? best : word;
+  });
+
+  return out;
+}
+
 // ESTADO
 const $ = id => document.getElementById(id);
 let state = {
@@ -911,6 +1179,7 @@ let state = {
   saveAudio: false,       // salvar .webm junto
   diarOn: false,          // diarização Deepgram
   dgKey: "",
+  contextArea: "none",    // contexto/área da reunião (vocabulário técnico)
   // Runtime de captura:
   _mediaRecorder: null,
   _audioChunks: [],
@@ -932,8 +1201,9 @@ let state = {
   _wsProc: null,          // ScriptProcessorNode
   _wsGainSilent: null,    // gain=0 pra não emitir som
   _wsPcmBuf: null,        // Float32Array acumulado
-  _wsChunkSamples: 16000 * 14, // ~14s por chunk
+  _wsChunkSamples: 16000 * 7,  // ~7s por chunk (mais tempo real, ainda com contexto)
   _wsQueue: 0,            // quantos chunks pendentes no worker
+  _wsLastFlush: 0,        // timestamp do último flush (pra preview de interim)
   _wsSilentStart: null,   // timestamp do início de silêncio (pra cortar chunk antes se tiver pausa longa)
 };
 
@@ -966,10 +1236,12 @@ function loadConfig() {
       state.saveAudio = !!c.saveAudio;
       state.diarOn = !!c.diarOn;
       state.dgKey = c.dgKey || "";
+      state.contextArea = c.contextArea || "none";
       // UI
       $("saveAudioChk").checked = state.saveAudio;
       $("diarChk").checked = state.diarOn;
       $("dgKey").value = state.dgKey;
+      if ($("ctxSel")) $("ctxSel").value = state.contextArea;
       applyAudioSourceUI();
     }
   } catch {}
@@ -979,6 +1251,9 @@ function saveConfig() {
   state.saveAudio = $("saveAudioChk").checked;
   state.diarOn = $("diarChk").checked;
   state.dgKey = $("dgKey").value.trim();
+  state.contextArea = ($("ctxSel") && $("ctxSel").value) || "none";
+  // Invalida o índice de contexto pra ser reconstruído com o novo valor
+  _ctxIndex = null; _ctxKey = null;
   try {
     localStorage.setItem("cpw_config", JSON.stringify({
       lang: $("langSel").value,
@@ -986,6 +1261,7 @@ function saveConfig() {
       saveAudio: state.saveAudio,
       diarOn: state.diarOn,
       dgKey: state.dgKey,
+      contextArea: state.contextArea,
     }));
   } catch {}
 }
@@ -1203,9 +1479,10 @@ function dgOnMessage(ev) {
       cur.tokens.push(token);
     }
     groups.forEach(g => {
+      const rawText = g.tokens.join(" ").replace(/\s+([.,!?;:])/g, "$1");
       const name = dgSpeakerName(g.sIdx);
       state.entries.push({
-        text: g.tokens.join(" ").replace(/\s+([.,!?;:])/g, "$1"),
+        text: applyContextCorrection(rawText),
         ts: nowClock(),
         speaker: name,
         speakerId: g.sIdx,
@@ -1213,7 +1490,7 @@ function dgOnMessage(ev) {
     });
     state.interim = "";
   } else {
-    state.interim = alt.transcript;
+    state.interim = applyContextCorrection(alt.transcript);
   }
   renderTranscript();
 }
@@ -1231,6 +1508,7 @@ function renameSpeaker(speakerId) {
   if (trimmed === current) return;
   state._dgSpeakerMap[speakerId] = trimmed;
   state.entries.forEach(e => { if (e.speakerId === speakerId) e.speaker = trimmed; });
+  _lastRenderedCount = 0;  // força render completo
   renderTranscript();
 }
 
@@ -1377,8 +1655,9 @@ function onWhisperMessage(e) {
     }
   } else if (msg.type === "result") {
     state._wsQueue = Math.max(0, state._wsQueue - 1);
-    const text = (msg.payload && msg.payload.text || "").trim();
-    if (text && !isNoiseText(text)) {
+    const rawText = (msg.payload && msg.payload.text || "").trim();
+    if (rawText && !isNoiseText(rawText)) {
+      const text = applyContextCorrection(rawText);
       state.entries.push({ text, ts: nowClock() });
       renderTranscript();
     }
@@ -1499,11 +1778,18 @@ function whisperStartCapture(mixedStream) {
     merged.set(samples, state._wsPcmBuf.length);
     state._wsPcmBuf = merged;
 
-    // Quando buffer atinge ~14s, envia pra transcrever
+    // Quando buffer atinge ~7s, envia pra transcrever
     if (state._wsPcmBuf.length >= state._wsChunkSamples) {
       whisperFlushChunk();
     }
   };
+
+  // Atualiza o indicador "Ouvindo… X%" a cada 800ms enquanto grava
+  if (state._wsTickInterval) clearInterval(state._wsTickInterval);
+  state._wsTickInterval = setInterval(() => {
+    if (!state.rec) { clearInterval(state._wsTickInterval); state._wsTickInterval = null; return; }
+    updateWhisperIndicator();
+  }, 800);
 
   // Precisa conectar ao destination pra o processor rodar, mas com ganho 0 pra não tocar o áudio
   state._wsGainSilent = state._wsCtx.createGain();
@@ -1558,6 +1844,8 @@ function whisperFlushChunk(forceEvenIfSmall) {
 }
 
 function whisperStopCapture() {
+  // Para o tick do indicador
+  if (state._wsTickInterval) { clearInterval(state._wsTickInterval); state._wsTickInterval = null; }
   // Envia o que sobrar
   if (state._wsPcmBuf && state._wsPcmBuf.length > 0) {
     whisperFlushChunk(true);
@@ -1585,6 +1873,11 @@ function updateWhisperIndicator() {
   if (state._wsQueue > 0) {
     ind.classList.add("processing");
     ind.innerHTML = '<span class="wsp-indicator-dot"></span> Transcrevendo… (' + state._wsQueue + ' em fila)';
+  } else if (state._wsPcmBuf && state._wsPcmBuf.length > 0 && state._wsChunkSamples > 0) {
+    // Mostra quanto do próximo chunk já foi capturado (feedback de tempo real)
+    const pct = Math.min(100, Math.round(state._wsPcmBuf.length / state._wsChunkSamples * 100));
+    ind.classList.remove("processing");
+    ind.innerHTML = '<span class="wsp-indicator-dot"></span> Ouvindo… ' + pct + '%';
   } else {
     ind.classList.remove("processing");
     ind.innerHTML = '<span class="wsp-indicator-dot"></span> Ouvindo…';
@@ -1687,12 +1980,16 @@ async function startRec() {
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const txt = ev.results[i][0].transcript;
         if (ev.results[i].isFinal) {
-          const clean = txt.trim();
+          const clean = applyContextCorrection(txt.trim());
           if (clean) { state.entries.push({text:clean, ts:nowClock()}); renderTranscript(); }
           state.interim = "";
         } else { interim += txt; }
       }
-      if (interim) { state.interim = interim; renderTranscript(); }
+      if (interim) {
+        // No interim também aplicamos correção pra o usuário já ver os termos certos
+        state.interim = applyContextCorrection(interim);
+        renderTranscript();
+      }
     };
 
     r.onerror = e => {
@@ -1900,6 +2197,8 @@ function newSession() {
   state._lastAudioBlob = null;
   state._audioChunks = [];
   state._dgSpeakerMap = {};
+  _lastRenderedCount = 0;
+  _lastInterim = "";
   $("sessionName").value = "";
   $("actions").classList.add("hidden");
   $("moreExports").classList.add("hidden");
@@ -2242,6 +2541,9 @@ function updateTimer() {
   }
 }
 
+let _lastRenderedCount = 0;
+let _lastInterim = "";
+
 function renderTranscript() {
   const el = $("transcript");
   if (!state.entries.length && !state.interim) {
@@ -2253,6 +2555,8 @@ function renderTranscript() {
     } else {
       el.innerHTML = `<div class="emoji">💬</div><p>O que você falar aparece aqui.</p>`;
     }
+    _lastRenderedCount = 0;
+    _lastInterim = "";
     return;
   }
   el.className = "transcript";
@@ -2261,17 +2565,41 @@ function renderTranscript() {
   const SPK_COLORS = ["#6BB5FF","#E8BF3F","#2EBF8B","#C6B3FB","#FF89A0","#FFB547","#4AD4E8"];
   const spkColor = s => SPK_COLORS[speakers.indexOf(s) % SPK_COLORS.length] || "#6BB5FF";
 
-  let html = state.entries.map(e => {
+  const buildEntry = e => {
     const speakerHtml = e.speaker
       ? `<span class="tr-speaker" style="color:${spkColor(e.speaker)}"${typeof e.speakerId==="number" ? ` onclick="renameSpeaker(${e.speakerId})" title="Clique para renomear"` : ""}>${escHtml(e.speaker)}</span>`
       : "";
     return `<div class="tr-entry">${speakerHtml}<span class="tr-time">${e.ts}</span>${escHtml(e.text)}</div>`;
-  }).join("");
+  };
 
-  if (state.interim && state.rec) {
-    html += `<div class="tr-entry interim"><span class="tr-time">${nowClock()}</span>${escHtml(state.interim)}...</div>`;
+  // Render incremental: se só foram adicionadas entradas novas (cenário mais comum em tempo real),
+  // adicionamos só o que mudou. Isso evita reanimar tudo a cada render.
+  const prevInterimEl = el.querySelector(".tr-entry.interim");
+  const recolor = speakers.length > 0 && el.querySelectorAll(".tr-entry:not(.interim)").length !== state.entries.length;
+
+  if (!recolor && state.entries.length >= _lastRenderedCount) {
+    // Remove interim antigo se houver
+    if (prevInterimEl) prevInterimEl.remove();
+    // Adiciona só as novas
+    for (let i = _lastRenderedCount; i < state.entries.length; i++) {
+      el.insertAdjacentHTML("beforeend", buildEntry(state.entries[i]));
+    }
+  } else {
+    // Render completo (ex: quando troca cores/falantes)
+    let html = state.entries.map(buildEntry).join("");
+    el.innerHTML = html;
   }
-  el.innerHTML = html;
+
+  // Adiciona interim atualizado (sem animar)
+  if (state.interim && state.rec) {
+    el.insertAdjacentHTML("beforeend",
+      `<div class="tr-entry interim"><span class="tr-time">${nowClock()}</span>${escHtml(state.interim)}…</div>`);
+  }
+
+  _lastRenderedCount = state.entries.length;
+  _lastInterim = state.interim;
+
+  // Sempre rola para o final pra mostrar o que acabou de chegar
   el.scrollTop = el.scrollHeight;
 }
 
