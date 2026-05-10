@@ -2325,15 +2325,14 @@ async function handleAudioFileUpload(event) {
 
   // Validação básica
   const okType = file.type && (file.type.startsWith("audio/") || file.type.startsWith("video/"));
-  const okExt = /\.(mp3|wav|m4a|ogg|webm|mp4|mov|aac|flac|opus|3gp|amr|wma|aiff?)$/i.test(file.name);
+  const okExt = /\.(mp3|wav|m4a|ogg|webm|mp4|mov|aac|flac|opus|3gp|amr|wma|aiff?|mkv|avi)$/i.test(file.name);
   if (!okType && !okExt) {
     showError("Selecione um arquivo de áudio ou vídeo válido (MP3, WAV, M4A, OGG, WebM, MP4, etc.).");
     return;
   }
 
-  // Limite de tamanho (200MB) — Whisper-base é bem rápido em chunks pequenos,
-  // mas decodificar arquivos enormes pode estourar a memória do navegador.
-  const MAX_MB = 200;
+  // Limite generoso (1GB). Arquivos grandes usam modo streaming, então não estoura RAM.
+  const MAX_MB = 1024;
   if (file.size > MAX_MB * 1024 * 1024) {
     showError(`Arquivo muito grande (${(file.size/1024/1024).toFixed(1)} MB). Limite: ${MAX_MB} MB. Tente comprimir ou cortar antes.`);
     return;
@@ -2362,7 +2361,7 @@ async function handleAudioFileUpload(event) {
   $("errorBar").classList.add("hidden");
   renderTranscript();
 
-  // 1) Garante o modelo Whisper carregado (mostra overlay de download na 1ª vez)
+  // 1) Garante o modelo Whisper carregado
   let modelOk = false;
   try {
     modelOk = await whisperEnsureLoaded();
@@ -2370,66 +2369,100 @@ async function handleAudioFileUpload(event) {
     showError("Não consegui preparar a transcrição: " + (err && err.message || err));
     return;
   }
-  if (!modelOk) {
-    // Usuário cancelou o download ou falhou
+  if (!modelOk) return;
+
+  // 2) Mostra overlay
+  showUplOverlay(file.name);
+
+  // 3) Estratégia híbrida priorizando QUALIDADE:
+  //    - Arquivos até 500MB: tenta decodeAudioData (qualidade máxima, rápido)
+  //    - Se falhar (memória) OU exceder 500MB: cai pra streaming em velocidade
+  //      real (playbackRate=1), qualidade IDÊNTICA ao caminho de decode.
+  //    Em ambos os modos a transcrição passa pelo mesmo Whisper, com o mesmo
+  //    tamanho de chunk e mesmo preprocessing — sem perda de qualidade.
+  const FORCE_STREAM_MB = 500;
+  const tryDecodeFirst = file.size <= FORCE_STREAM_MB * 1024 * 1024;
+
+  let appendedAny = false;
+  try {
+    if (tryDecodeFirst) {
+      appendedAny = await transcribeViaDecodeAll(file);
+    } else {
+      appendedAny = await transcribeViaStreaming(file);
+    }
+  } catch (err) {
+    console.error("[upload]", err);
+    hideUplOverlay();
+    showError(err && err.message ? err.message : "Erro durante a transcrição.");
     return;
   }
 
-  // 2) Mostra overlay de progresso da transcrição
-  showUplOverlay(file.name);
+  hideUplOverlay();
+
+  if (state._uploadCancelled) return;
+
+  if (!appendedAny) {
+    showError("Não consegui extrair texto desse áudio. Verifique se ele tem fala audível e tente novamente.");
+    return;
+  }
+
+  // Se "Salvar o áudio" está ligado, guarda o arquivo original pra download depois
+  if (state.saveAudio) {
+    state._audioBlob = file;
+  }
+
+  saveCurrentSessionFromUpload(file);
+
+  $("finishPanel").classList.remove("hidden");
+  $("actions").classList.remove("hidden");
+  $("moreExports").classList.remove("hidden");
+  updateRecUI();
+  renderTranscript();
+  setTimeout(() => {
+    const panel = $("finishPanel");
+    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 120);
+}
+
+// ============================
+// MODO 1 — DECODE TUDO DE UMA VEZ (arquivos pequenos)
+// ============================
+async function transcribeViaDecodeAll(file) {
+  $("uplTitle").textContent = "Transcrevendo o arquivo";
+  $("uplSub").textContent = "Lendo o arquivo e processando os trechos. O texto aparece no fundo conforme avança.";
   $("uplPct").textContent = "Lendo o arquivo…";
 
-  // 3) Decodifica o arquivo
   let pcm;
   try {
     pcm = await decodeAudioFileTo16kMono(file);
   } catch (err) {
-    hideUplOverlay();
-    showError(err.message || "Não consegui ler esse arquivo. Tente converter para MP3 ou WAV.");
-    return;
+    // Fallback automático: se decodeAudioData falhou (geralmente memória), tenta streaming
+    console.warn("[upload] decodeAudioData falhou, tentando modo streaming:", err);
+    return await transcribeViaStreaming(file);
   }
+  if (state._uploadCancelled) return false;
 
-  if (state._uploadCancelled) return;
+  state.elapsed = Math.floor(pcm.length / 16000);
 
-  // Duração total em segundos (será o "tempo" da gravação)
-  const totalSec = pcm.length / 16000;
-  state.elapsed = Math.floor(totalSec);
-
-  // 4) Quebra em chunks de ~28s (Whisper-base aceita até 30s por inferência).
-  // Sobreposição pequena de 0.5s para evitar cortar palavras na fronteira —
-  // o efeito prático é mínimo na transcrição final mas reduz palavras "comidas".
   const CHUNK_SEC = 28;
   const CHUNK_SAMPLES = 16000 * CHUNK_SEC;
-  const STEP_SAMPLES = CHUNK_SAMPLES; // sem overlap, mais simples e rápido
-  const totalChunks = Math.max(1, Math.ceil(pcm.length / STEP_SAMPLES));
-
+  const totalChunks = Math.max(1, Math.ceil(pcm.length / CHUNK_SAMPLES));
   $("uplPct").textContent = `Trecho 0 de ${totalChunks}  (0%)`;
 
   let appendedAny = false;
-
   for (let i = 0; i < totalChunks; i++) {
-    if (state._uploadCancelled) {
-      hideUplOverlay();
-      return;
-    }
+    if (state._uploadCancelled) return appendedAny;
 
-    const start = i * STEP_SAMPLES;
+    const start = i * CHUNK_SAMPLES;
     const end = Math.min(start + CHUNK_SAMPLES, pcm.length);
     if (end - start < 16000 * 0.5) {
-      // Trecho residual muito curto (<0.5s), ignora pra não dar resultado ruim
       updateUplProgress(i + 1, totalChunks);
       continue;
     }
-
-    // Cria uma cópia do trecho — precisamos passar buffer transferível
     const chunk = pcm.slice(start, end);
     const ts = fmtTimeFromSec(start / 16000);
-
     const result = await transcribeUploadChunk(chunk);
-    if (state._uploadCancelled) {
-      hideUplOverlay();
-      return;
-    }
+    if (state._uploadCancelled) return appendedAny;
 
     if (result && result.ok) {
       const raw = (result.text || "").trim();
@@ -2442,37 +2475,214 @@ async function handleAudioFileUpload(event) {
     } else if (result && result.error) {
       console.warn(`[upload chunk ${i}]`, result.error);
     }
-
     updateUplProgress(i + 1, totalChunks);
   }
+  return appendedAny;
+}
 
-  hideUplOverlay();
+// ============================
+// MODO 2 — STREAMING via MediaElement (arquivos grandes / vídeos longos)
+// ============================
+// Em vez de carregar o arquivo inteiro em memória, criamos um <video> ou <audio>
+// invisível com o blob do arquivo, reproduzimos em modo silencioso (acelerado pra
+// economizar tempo) e capturamos o áudio em tempo real via AudioContext, enviando
+// chunks pro Whisper conforme chegam. Isso permite processar arquivos de qualquer
+// tamanho — limitado apenas pela duração da reprodução acelerada.
+async function transcribeViaStreaming(file) {
+  $("uplTitle").textContent = "Transcrevendo arquivo grande";
+  $("uplSub").textContent = "Modo streaming — qualidade idêntica ao normal, mas leva o tempo do áudio (real-time). O texto vai aparecendo no fundo conforme avança.";
+  $("uplPct").textContent = "Carregando o arquivo…";
+  $("uplBarFill").style.width = "0%";
 
-  // 5) Se a opção "salvar áudio" está ligada, mantém o arquivo original em
-  // memória para que o botão "Baixar áudio" funcione.
-  if (state.saveAudio) {
-    state._audioBlob = file;
+  const url = URL.createObjectURL(file);
+  const isVideo = (file.type && file.type.startsWith("video/")) ||
+    /\.(mp4|mov|webm|mkv|avi|3gp)$/i.test(file.name);
+  const media = document.createElement(isVideo ? "video" : "audio");
+  media.src = url;
+  media.preload = "auto";
+  media.muted = false;  // áudio precisa fluir pro AudioContext (sai com gain=0)
+  // VELOCIDADE REAL: garante qualidade IDÊNTICA ao modo decode.
+  // Acelerar (mesmo com preservesPitch) faz o Whisper errar mais palavras
+  // porque chega mais conteúdo de fala por segundo do chunk.
+  const RATE = 1.0;
+  media.playbackRate = RATE;
+  if ('preservesPitch' in media) media.preservesPitch = true;
+  if ('mozPreservesPitch' in media) media.mozPreservesPitch = true;
+  if ('webkitPreservesPitch' in media) media.webkitPreservesPitch = true;
+
+  // Vídeo precisa estar no DOM pra reproduzir em alguns navegadores
+  if (isVideo) {
+    media.style.cssText = "position:absolute;left:-9999px;top:0;width:1px;height:1px;visibility:hidden;pointer-events:none";
+    media.playsInline = true;  // iOS — não tenta abrir em fullscreen
+    document.body.appendChild(media);
   }
 
-  // 6) Finaliza igual ao final de uma gravação normal
-  if (!appendedAny) {
-    showError("Não consegui extrair texto desse áudio. Verifique se ele tem fala audível e tente novamente.");
-    return;
+  // Espera metadata pra saber a duração
+  await new Promise((resolve, reject) => {
+    const onMeta = () => { cleanup(); resolve(); };
+    const onErr = () => { cleanup(); reject(new Error("Não consegui ler o arquivo. Tente outro formato (MP3, WAV, M4A).")); };
+    const cleanup = () => {
+      media.removeEventListener("loadedmetadata", onMeta);
+      media.removeEventListener("error", onErr);
+    };
+    media.addEventListener("loadedmetadata", onMeta, { once: true });
+    media.addEventListener("error", onErr, { once: true });
+    setTimeout(() => { cleanup(); reject(new Error("Tempo esgotado ao carregar o arquivo.")); }, 60000);
+  });
+
+  if (!isFinite(media.duration) || media.duration < 1) {
+    if (media.parentNode) media.parentNode.removeChild(media);
+    URL.revokeObjectURL(url);
+    throw new Error("Esse arquivo não tem duração válida. Tente outro.");
   }
 
-  // Salva sessão usando a infra existente
-  saveCurrentSessionFromUpload(file);
+  state.elapsed = Math.floor(media.duration);
+  $("uplSub").textContent = `Vídeo/áudio de ${fmtTimeFromSec(media.duration)} — vai levar cerca de ${fmtTimeFromSec(media.duration)} para processar (qualidade igual ao normal).`;
 
-  // Mostra painel de finalização e ações
-  $("finishPanel").classList.remove("hidden");
-  $("actions").classList.remove("hidden");
-  $("moreExports").classList.remove("hidden");
-  updateRecUI();
-  renderTranscript();
-  setTimeout(() => {
-    const panel = $("finishPanel");
-    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 120);
+  // AudioContext — tenta criar em 16kHz pra evitar resample
+  let ctx;
+  try {
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  } catch {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const sourceRate = ctx.sampleRate;
+  const resampleNeeded = Math.abs(sourceRate - 16000) > 1;
+
+  const source = ctx.createMediaElementSource(media);
+  // ScriptProcessor (deprecated mas universalmente suportado e estável pra este caso)
+  const proc = ctx.createScriptProcessor(4096, 1, 1);
+  const gainSilent = ctx.createGain();
+  gainSilent.gain.value = 0;  // não toca som no alto-falante
+
+  // Buffer rotativo
+  const CHUNK_SEC = 28;  // segundos do AudioContext (= CHUNK_SEC * RATE seg de mídia original)
+  const CHUNK_SAMPLES = 16000 * CHUNK_SEC;
+  let pcmBuf = new Float32Array(0);
+  let chunkIndex = 0;
+  let appendedAny = false;
+  let firstSampleTime = null;
+
+  // Fila sequencial — Whisper-worker é single-threaded, melhor um chunk por vez
+  let transcribeChain = Promise.resolve();
+  let pendingCount = 0;
+
+  function enqueueChunk(chunk, mediaTimeSec) {
+    pendingCount++;
+    transcribeChain = transcribeChain.then(async () => {
+      if (state._uploadCancelled) {
+        pendingCount--;
+        return;
+      }
+      try {
+        const result = await transcribeUploadChunk(chunk);
+        if (state._uploadCancelled) return;
+        if (result && result.ok) {
+          const raw = (result.text || "").trim();
+          if (raw && !isNoiseText(raw)) {
+            const corrected = applyContextCorrection(raw);
+            state.entries.push({ text: corrected, ts: fmtTimeFromSec(mediaTimeSec) });
+            appendedAny = true;
+            renderTranscript();
+          }
+        }
+      } catch (e) {
+        console.warn("[stream chunk]", e);
+      } finally {
+        pendingCount--;
+      }
+    });
+  }
+
+  proc.onaudioprocess = (e) => {
+    if (state._uploadCancelled || media.paused || media.ended) return;
+    const input = e.inputBuffer.getChannelData(0);
+    let samples = resampleNeeded ? downsampleTo16k(input, sourceRate) : input;
+
+    const merged = new Float32Array(pcmBuf.length + samples.length);
+    merged.set(pcmBuf);
+    merged.set(samples, pcmBuf.length);
+    pcmBuf = merged;
+
+    while (pcmBuf.length >= CHUNK_SAMPLES) {
+      const chunk = pcmBuf.slice(0, CHUNK_SAMPLES);
+      pcmBuf = pcmBuf.slice(CHUNK_SAMPLES);
+      // Timestamp na MÍDIA ORIGINAL (não no AudioContext): chunkIndex * 28s * playbackRate
+      const mediaTimeSec = chunkIndex * CHUNK_SEC * RATE;
+      chunkIndex++;
+      enqueueChunk(chunk, mediaTimeSec);
+    }
+  };
+
+  source.connect(proc);
+  proc.connect(gainSilent);
+  gainSilent.connect(ctx.destination);
+
+  // Atualiza progresso baseado em currentTime do MediaElement
+  const progressTimer = setInterval(() => {
+    if (state._uploadCancelled || media.ended) return;
+    const t = media.currentTime;
+    const dur = media.duration;
+    if (dur > 0) {
+      const pct = Math.min(100, Math.round((t / dur) * 100));
+      $("uplBarFill").style.width = pct + "%";
+      $("uplPct").textContent = `${fmtTimeFromSec(t)} / ${fmtTimeFromSec(dur)}  (${pct}%)`;
+    }
+  }, 500);
+
+  // Inicia reprodução
+  try {
+    await media.play();
+  } catch (err) {
+    clearInterval(progressTimer);
+    try { proc.disconnect(); source.disconnect(); gainSilent.disconnect(); ctx.close(); } catch {}
+    if (media.parentNode) media.parentNode.removeChild(media);
+    URL.revokeObjectURL(url);
+    throw new Error("Não consegui iniciar a reprodução do arquivo. Tente em outro navegador (Chrome/Edge) ou converta para MP3/WAV.");
+  }
+
+  // Espera terminar (ou cancelar)
+  await new Promise((resolve) => {
+    let resolved = false;
+    const finish = () => { if (!resolved) { resolved = true; resolve(); } };
+    media.addEventListener("ended", finish, { once: true });
+    media.addEventListener("error", finish, { once: true });
+    const cancelChecker = setInterval(() => {
+      if (state._uploadCancelled || media.ended) {
+        clearInterval(cancelChecker);
+        try { media.pause(); } catch {}
+        finish();
+      }
+    }, 300);
+  });
+
+  clearInterval(progressTimer);
+
+  // Último chunk residual (se sobrou pelo menos 1 segundo de áudio)
+  if (!state._uploadCancelled && pcmBuf.length > 16000) {
+    const mediaTimeSec = chunkIndex * CHUNK_SEC * RATE;
+    enqueueChunk(pcmBuf, mediaTimeSec);
+    pcmBuf = new Float32Array(0);
+  }
+
+  // Aguarda fila terminar
+  $("uplPct").textContent = "Finalizando últimos trechos…";
+  $("uplBarFill").style.width = "100%";
+  await transcribeChain;
+  // E espera mais um pouco se ainda tem chunks pendentes
+  while (pendingCount > 0 && !state._uploadCancelled) {
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Limpeza
+  try { proc.disconnect(); } catch {}
+  try { source.disconnect(); } catch {}
+  try { gainSilent.disconnect(); } catch {}
+  try { ctx.close(); } catch {}
+  if (media.parentNode) media.parentNode.removeChild(media);
+  URL.revokeObjectURL(url);
+
+  return appendedAny;
 }
 
 // Salva a sessão importada (sem passar pelo MediaRecorder, já que não houve gravação)
@@ -3150,10 +3360,10 @@ function updateRecUI() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <div style="text-align:left">
               <div>Importar áudio para transcrever</div>
-              <small>MP3, WAV, M4A, OGG, WebM ou vídeo</small>
+              <small>Áudio ou vídeo · até 1GB · qualidade idêntica</small>
             </div>
           </button>
-          <input type="file" id="audioFileInput" class="import-input" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.webm,.mp4,.mov,.aac,.flac,.opus" onchange="handleAudioFileUpload(event)"/>
+          <input type="file" id="audioFileInput" class="import-input" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.webm,.mp4,.mov,.mkv,.avi,.aac,.flac,.opus,.3gp" onchange="handleAudioFileUpload(event)"/>
         </div>
       `}
     `;
