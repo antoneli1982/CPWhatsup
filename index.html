@@ -1810,28 +1810,68 @@ env.allowRemoteModels = true;
 let transcriber = null;
 const MODEL_ID = 'onnx-community/whisper-base';
 
+// Detecta se WebGPU REALMENTE funciona (não só se a API existe)
+async function probeWebGPU() {
+  try {
+    if (!('gpu' in navigator) || !navigator.gpu) return false;
+    const adapter = await Promise.race([
+      navigator.gpu.requestAdapter(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))
+    ]);
+    return !!adapter;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function loadModel() {
   const progressCb = (p) => self.postMessage({ type: 'progress', payload: p });
-  // Tenta WebGPU primeiro (bem mais rápido quando disponível)
-  try {
-    transcriber = await pipeline('automatic-speech-recognition', MODEL_ID, {
-      dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
-      device: 'webgpu',
-      progress_callback: progressCb,
-    });
-    self.postMessage({ type: 'loaded', payload: { backend: 'webgpu' } });
-    return;
-  } catch (gpuErr) {
-    // cai pro WASM
+
+  // 1) Tenta WebGPU APENAS se realmente disponível (mais rápido quando funciona)
+  const hasGPU = await probeWebGPU();
+  if (hasGPU) {
+    try {
+      transcriber = await pipeline('automatic-speech-recognition', MODEL_ID, {
+        dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
+        device: 'webgpu',
+        progress_callback: progressCb,
+      });
+      self.postMessage({ type: 'loaded', payload: { backend: 'webgpu' } });
+      return;
+    } catch (gpuErr) {
+      // Falhou no meio da inicialização — descarta e cai pro WASM
+      transcriber = null;
+      console.warn('[whisper] WebGPU init falhou, caindo pra WASM:', gpuErr);
+    }
   }
+
+  // 2) WASM com q8 (padrão recomendado pra Whisper-base)
+  //    Forçar device: 'wasm' explicitamente para a lib NÃO tentar WebGPU de novo
   try {
     transcriber = await pipeline('automatic-speech-recognition', MODEL_ID, {
       dtype: 'q8',
+      device: 'wasm',
       progress_callback: progressCb,
     });
-    self.postMessage({ type: 'loaded', payload: { backend: 'wasm' } });
-  } catch (err) {
-    self.postMessage({ type: 'error', payload: String(err && err.message || err) });
+    self.postMessage({ type: 'loaded', payload: { backend: 'wasm-q8' } });
+    return;
+  } catch (wasmErr1) {
+    transcriber = null;
+    console.warn('[whisper] WASM q8 falhou, tentando fp32:', wasmErr1);
+  }
+
+  // 3) WASM sem quantização (fallback ainda mais conservador, mas usa mais RAM)
+  try {
+    transcriber = await pipeline('automatic-speech-recognition', MODEL_ID, {
+      device: 'wasm',
+      progress_callback: progressCb,
+    });
+    self.postMessage({ type: 'loaded', payload: { backend: 'wasm-default' } });
+    return;
+  } catch (wasmErr2) {
+    transcriber = null;
+    // Fim da linha — não há mais o que tentar
+    self.postMessage({ type: 'error', payload: 'Não foi possível carregar o modelo neste navegador. Tente Chrome ou Edge atualizado em outro dispositivo. Detalhe: ' + String(wasmErr2 && wasmErr2.message || wasmErr2) });
   }
 }
 
