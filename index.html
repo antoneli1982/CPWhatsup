@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>CPWhat's up — Transcrever reunião</title>
+<title>Transcriação — Transcrever reunião</title>
 <meta name="description" content="Grave reuniões, veja o texto aparecer em tempo real e receba um resumo automático. Grátis, direto no navegador."/>
 <meta name="theme-color" content="#0E1A2E"/>
 
 <!-- Open Graph (WhatsApp, Facebook, LinkedIn, Telegram) -->
 <meta property="og:type" content="website"/>
-<meta property="og:site_name" content="CPWhat's up"/>
-<meta property="og:title" content="CPWhat's up — Transcrever reunião"/>
+<meta property="og:site_name" content="Transcriação"/>
+<meta property="og:title" content="Transcriação — Transcrever reunião"/>
 <meta property="og:description" content="Grave reuniões, transcreva em tempo real e receba um resumo automático. Grátis, direto no navegador."/>
 <meta property="og:url" content="https://antoneli1982.github.io/CPWhatsup/"/>
 <meta property="og:image" content="https://antoneli1982.github.io/CPWhatsup/preview.png"/>
@@ -18,20 +18,20 @@
 <meta property="og:image:type" content="image/png"/>
 <meta property="og:image:width" content="1200"/>
 <meta property="og:image:height" content="630"/>
-<meta property="og:image:alt" content="CPWhat's up — ícone de microfone sobre fundo azul"/>
+<meta property="og:image:alt" content="Transcriação — ícone de microfone sobre fundo azul"/>
 <meta property="og:locale" content="pt_BR"/>
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="CPWhat's up — Transcrever reunião"/>
+<meta name="twitter:title" content="Transcriação — Transcrever reunião"/>
 <meta name="twitter:description" content="Grave reuniões, transcreva em tempo real e receba um resumo automático. Grátis, direto no navegador."/>
 <meta name="twitter:image" content="https://antoneli1982.github.io/CPWhatsup/preview.png"/>
-<meta name="twitter:image:alt" content="CPWhat's up — ícone de microfone sobre fundo azul"/>
+<meta name="twitter:image:alt" content="Transcriação — ícone de microfone sobre fundo azul"/>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%234A9AE8'/%3E%3Crect x='42' y='25' width='16' height='34' rx='8' fill='white'/%3E%3Cpath d='M32 50a18 18 0 0 0 36 0M50 68v10' stroke='white' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Unbounded:wght@500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 :root{
   --bg:#0A1220;
@@ -44,17 +44,23 @@
   --textDim:#5B7495;
   --blue:#4A9AE8;
   --blueBr:#6BB5FF;
+  --cyan:#22D3EE;
+  --cyanBr:#67E8F9;
   --red:#FF4D6A;
   --green:#2EBF8B;
   --gold:#E8BF3F;
+  --font-body:'Inter Tight',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-display:'Unbounded','Inter Tight',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{
   min-height:100vh;background:var(--bg);color:var(--text);
-  font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-family:var(--font-body);
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
   font-weight:400;line-height:1.5;overflow-x:hidden;
   box-sizing:border-box;
+  font-feature-settings:"ss01","cv11";
 }
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 button:disabled{cursor:not-allowed;opacity:.5}
@@ -68,8 +74,14 @@ input{font-family:inherit}
 .bg-glow::before{
   content:"";position:absolute;top:-20%;left:50%;transform:translateX(-50%);
   width:900px;height:600px;border-radius:50%;
-  background:radial-gradient(circle,rgba(74,154,232,.12),transparent 70%);
-  filter:blur(40px);
+  background:radial-gradient(circle,rgba(34,211,238,.12),rgba(74,154,232,.08) 40%,transparent 70%);
+  filter:blur(48px);
+}
+.bg-glow::after{
+  content:"";position:absolute;bottom:-20%;right:-10%;
+  width:500px;height:500px;border-radius:50%;
+  background:radial-gradient(circle,rgba(74,154,232,.08),transparent 70%);
+  filter:blur(60px);
 }
 
 /* Layout principal */
@@ -110,15 +122,96 @@ input{font-family:inherit}
 }
 
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
-.logo{display:flex;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:14px}
 .logo-icon{
-  width:40px;height:40px;border-radius:11px;
-  background:linear-gradient(135deg,#4A9AE8,#2D6DB5);
-  display:inline-flex;align-items:center;justify-content:center;color:white;
-  box-shadow:0 4px 14px rgba(74,154,232,.4);
+  width:46px;height:46px;border-radius:12px;
+  background:linear-gradient(135deg,#0E1A2E 0%,#1A2A4A 100%);
+  border:1px solid rgba(34,211,238,.35);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--cyanBr);
+  box-shadow:0 0 0 1px rgba(34,211,238,.08),0 8px 24px rgba(34,211,238,.18),inset 0 1px 0 rgba(255,255,255,.04);
+  position:relative;
 }
-.logo-name{font-size:17px;font-weight:600;letter-spacing:-.01em;line-height:1.1}
-.logo-sub{font-size:11px;color:var(--textMid);font-weight:500;margin-top:2px}
+.logo-icon::after{
+  content:"";position:absolute;inset:-2px;border-radius:13px;
+  background:linear-gradient(135deg,rgba(34,211,238,.5),rgba(74,154,232,.2),transparent);
+  z-index:-1;filter:blur(8px);opacity:.6;
+}
+.logo-name{
+  font-family:var(--font-display);
+  font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1;
+  display:inline-flex;align-items:baseline;white-space:nowrap;
+  /* tipografia: usar features da Unbounded */
+}
+/* "Transcri" — tom discreto, peso médio, sem caixa alta */
+.ln-prefix{
+  font-weight:500;letter-spacing:-.025em;
+  background:linear-gradient(135deg,#E8EFF8 0%,#9FB2CC 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+/* "AÇÃO" — destaque, peso bold, uppercase, gradient ciano com glow */
+.ln-action{
+  font-weight:800;letter-spacing:-.005em;
+  display:inline-flex;align-items:baseline;
+  background:linear-gradient(135deg,#67E8F9 0%,#22D3EE 45%,#6BB5FF 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 14px rgba(34,211,238,.28));
+  margin-left:.04em;
+}
+/* "O" final — substituído por SVG com ondas concêntricas pulsando */
+.ln-o{
+  display:inline-block;
+  width:.78em;height:.78em;
+  margin:0 .015em -.04em .03em;        /* ajuste fino pra alinhar com a baseline */
+  position:relative;
+  color:#22D3EE;                        /* o gradient não atravessa o SVG, então setamos cor sólida */
+  filter:drop-shadow(0 0 10px rgba(34,211,238,.55));
+}
+.ln-o svg{display:block;width:100%;height:100%;overflow:visible}
+.ln-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.logo-sub{
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--font-mono);
+  font-size:10.5px;color:var(--cyan);font-weight:500;
+  margin-top:6px;letter-spacing:.14em;text-transform:uppercase;
+}
+.logo-sub .dot-live{
+  width:6px;height:6px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 8px rgba(34,211,238,.8);
+  animation:radioPing 1.6s ease-in-out infinite;
+}
+@keyframes radioPing{
+  0%,100%{opacity:.4;transform:scale(.8)}
+  50%{opacity:1;transform:scale(1.1)}
+}
+
+/* Equalizer animado ao lado do logo (vibe rádio/broadcast) */
+.eq-bars{
+  display:flex;align-items:center;gap:3px;height:22px;margin-left:auto;margin-right:14px;
+  padding:0 10px;border-radius:8px;
+  background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.18);
+}
+.eq-bars span{
+  display:block;width:2.5px;border-radius:2px;
+  background:linear-gradient(180deg,var(--cyanBr),var(--blue));
+  animation:eqBar 1.1s ease-in-out infinite;
+  box-shadow:0 0 6px rgba(34,211,238,.4);
+}
+.eq-bars span:nth-child(1){height:35%;animation-delay:-.2s}
+.eq-bars span:nth-child(2){height:75%;animation-delay:-.4s}
+.eq-bars span:nth-child(3){height:55%;animation-delay:-.1s}
+.eq-bars span:nth-child(4){height:90%;animation-delay:-.6s}
+.eq-bars span:nth-child(5){height:45%;animation-delay:-.3s}
+.eq-bars span:nth-child(6){height:65%;animation-delay:-.5s}
+@keyframes eqBar{
+  0%,100%{transform:scaleY(.35)}
+  50%{transform:scaleY(1)}
+}
+@media(max-width:520px){
+  .eq-bars{display:none}
+}
 .icon-btn{
   width:40px;height:40px;border-radius:11px;
   background:var(--surface);border:1px solid var(--border);color:var(--textMid);
@@ -142,11 +235,12 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 /* Botão grande inicial (só aparece antes de gravar) */
 .rec-btn{
   width:140px;height:140px;border-radius:50%;
-  background:linear-gradient(145deg,#FF4D6A,#D13048);
+  background:radial-gradient(circle at 30% 30%,#FF6B85,#D13048 70%);
   color:white;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-  font-weight:600;font-size:15px;letter-spacing:.01em;
-  box-shadow:0 14px 40px rgba(255,77,106,.35),0 0 0 4px rgba(255,77,106,.12);
+  font-family:var(--font-mono);
+  font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+  box-shadow:0 14px 40px rgba(255,77,106,.4),0 0 0 4px rgba(255,77,106,.1),inset 0 1px 0 rgba(255,255,255,.18),inset 0 -3px 8px rgba(0,0,0,.25);
   transition:all .15s;
   position:relative;
 }
@@ -247,26 +341,31 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 /* Timer gigante durante gravação */
 .rec-timer-big{
   display:inline-flex;align-items:center;gap:14px;
-  font-size:44px;font-weight:600;color:var(--red);
-  font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1;
+  font-family:var(--font-mono);
+  font-size:48px;font-weight:500;color:var(--cyanBr);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1;
+  text-shadow:0 0 24px rgba(34,211,238,.3);
 }
-.rec-timer-big.paused{color:var(--textMid)}
+.rec-timer-big.paused{color:var(--textMid);text-shadow:none}
 .rec-timer-big.paused svg{color:var(--gold)}
 .rec-dot-live{
-  width:14px;height:14px;border-radius:50%;background:var(--red);
+  width:14px;height:14px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 12px rgba(34,211,238,.7),0 0 0 4px rgba(34,211,238,.15);
   animation:dotPulse 1.4s ease-in-out infinite;
 }
 @keyframes dotPulse{
-  0%,100%{opacity:1;transform:scale(1)}
-  50%{opacity:.35;transform:scale(.75)}
+  0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 12px rgba(34,211,238,.7),0 0 0 4px rgba(34,211,238,.15)}
+  50%{opacity:.55;transform:scale(.78);box-shadow:0 0 6px rgba(34,211,238,.4),0 0 0 8px rgba(34,211,238,.05)}
 }
 .rec-status{
-  font-size:14px;color:var(--textMid);text-align:center;max-width:380px;line-height:1.5;
+  font-family:var(--font-mono);
+  font-size:11.5px;color:var(--textMid);text-align:center;max-width:380px;line-height:1.5;
+  letter-spacing:.12em;text-transform:uppercase;
 }
-.rec-status strong{color:var(--text);font-weight:500}
-.rec-status{font-size:15px;color:var(--textMid);text-align:center;max-width:380px;line-height:1.5}
-.rec-status strong{color:var(--text);font-weight:500}
-.rec-timer{font-size:28px;font-weight:600;color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.rec-status strong{color:var(--cyanBr);font-weight:700}
+.rec-status{font-family:var(--font-mono);font-size:11.5px;color:var(--textMid);text-align:center;max-width:380px;line-height:1.5;letter-spacing:.12em;text-transform:uppercase}
+.rec-status strong{color:var(--cyanBr);font-weight:700}
+.rec-timer{font-size:28px;font-weight:600;color:var(--cyanBr);font-variant-numeric:tabular-nums;letter-spacing:.02em;font-family:var(--font-mono)}
 
 .transcript{
   background:var(--surface);border:1px solid var(--border);border-radius:14px;
@@ -319,7 +418,8 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 
 .section-title{
   display:flex;align-items:center;justify-content:space-between;
-  font-size:12px;font-weight:600;color:var(--textMid);text-transform:uppercase;letter-spacing:.08em;
+  font-family:var(--font-mono);
+  font-size:11px;font-weight:500;color:var(--cyan);text-transform:uppercase;letter-spacing:.18em;
   margin:36px 0 14px;
 }
 .session{
@@ -755,12 +855,24 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 <header>
   <div class="logo">
     <span class="logo-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/>
+        <path d="M8.46 8.46a5 5 0 0 0 0 7.07"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        <path d="M5.64 5.64a9 9 0 0 0 0 12.73"/>
+        <path d="M18.36 5.64a9 9 0 0 1 0 12.73"/>
+      </svg>
     </span>
     <div>
-      <div class="logo-name">CPWhat's up</div>
-      <div class="logo-sub">Grave e transcreva</div>
+      <div class="logo-name" aria-label="Transcriação"><span class="ln-prefix">Transcri</span><span class="ln-action">AÇÃ<span class="ln-o" aria-hidden="true"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="20" cy="20" r="9.5" stroke-width="3.8"/><circle cx="20" cy="20" r="10" stroke-width="2" opacity=".7"><animate attributeName="r" values="10;17.5" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" repeatCount="indefinite"/><animate attributeName="stroke-width" values="2;0.4" dur="1.8s" repeatCount="indefinite"/></circle><circle cx="20" cy="20" r="10" stroke-width="2" opacity=".7"><animate attributeName="r" values="10;17.5" dur="1.8s" begin="0.9s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="1.8s" begin="0.9s" repeatCount="indefinite"/><animate attributeName="stroke-width" values="2;0.4" dur="1.8s" begin="0.9s" repeatCount="indefinite"/></circle></g></svg><span class="ln-sr">O</span></span></span></div>
+      <div class="logo-sub">
+        <span class="dot-live"></span>
+        <span>VOZ → TEXTO · TEMPO REAL</span>
+      </div>
     </div>
+  </div>
+  <div class="eq-bars" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
   </div>
   <button class="icon-btn cfg-btn-header" onclick="openCfg()" aria-label="Configurações" title="Configurações">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -979,7 +1091,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   </div>
 
   <div style="font-size:11.5px;color:var(--textDim);line-height:1.6;margin-top:40px;padding-top:20px;border-top:1px solid var(--border)">
-    CPWhat's up funciona direto no seu navegador. As gravações ficam salvas só neste dispositivo. A identificação de vozes usa a Deepgram (opcional) e envia o áudio diretamente para lá — não passa por servidores nossos.
+    Transcriação funciona direto no seu navegador. As gravações ficam salvas só neste dispositivo. A identificação de vozes usa a Deepgram (opcional) e envia o áudio diretamente para lá — não passa por servidores nossos.
   </div>
 </div>
 
@@ -2769,7 +2881,7 @@ function liveCopy() {
     "━━ TRANSCRIÇÃO PARCIAL ━━",
     ...d.entries.map(e => `[${e.ts}] ${e.text}`),
     "",
-    "— CPWhat's up (gravação em andamento)",
+    "— Transcriação (gravação em andamento)",
   ];
   const txt = lines.join("\n");
   const done = () => {
@@ -2819,7 +2931,7 @@ function liveCopyFromModal() {
   }
   lines.push("━━ TRANSCRIÇÃO PARCIAL ━━");
   d.entries.forEach(e => lines.push(`[${e.ts}] ${e.text}`));
-  lines.push("", "— CPWhat's up (gravação em andamento)");
+  lines.push("", "— Transcriação (gravação em andamento)");
   const txt = lines.join("\n");
   navigator.clipboard?.writeText(txt);
   // Feedback no botão
@@ -2894,7 +3006,7 @@ ${sum && sum.pontos.length ? `<h2>Pontos principais</h2><ul>${sum.pontos.map(p =
 ${sum && sum.acoes.length ? `<h2>O que fazer depois</h2><ul class="gold">${sum.acoes.map(a => `<li>${escHtml(a.texto)}${a.prazo ? `<br><span class="prazo">Prazo: ${escHtml(a.prazo)}</span>` : ""}</li>`).join("")}</ul>` : ""}
 <h2>Transcrição parcial</h2>
 ${d.entries.map(e => `<div class="tr"><span class="tm">${e.ts}</span>${escHtml(e.text)}</div>`).join("")}
-<div class="ft">Gerado por CPWhat's up · Transcrição parcial (a gravação ainda estava em andamento)</div>
+<div class="ft">Gerado por Transcriação · Transcrição parcial (a gravação ainda estava em andamento)</div>
 </body></html>`;
 
   const w = window.open("", "_blank");
@@ -2916,7 +3028,7 @@ function updateRecUI() {
         <span class="rec-dot-live"></span>
         <span class="rec-timer-num">${fmtTime(state.elapsed)}</span>
       </div>
-      <div class="rec-status">Gravando — fale normalmente</div>
+      <div class="rec-status">Capturando áudio · fale normalmente</div>
       <div id="wspIndicator" class="wsp-indicator hidden"></div>
       <div class="rec-dual">
         <button class="rec-action pause" onclick="pauseRec()">
@@ -2959,7 +3071,7 @@ function updateRecUI() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>
         <span>${has ? 'Gravar de novo' : 'Gravar'}</span>
       </button>
-      <div class="rec-status">${has ? '<strong>Gravação finalizada.</strong> Resumo e transcrição abaixo.' : 'Clique no botão para começar'}</div>
+      <div class="rec-status">${has ? '<strong>Sessão concluída</strong> · transcrição abaixo' : 'Sistema pronto · toque para iniciar'}</div>
       ${has ? '' : `
         <div class="import-wrap">
           <div class="import-divider"><span>ou</span></div>
@@ -3364,7 +3476,7 @@ function buildShareText() {
   }
   lines.push("━━ TRANSCRIÇÃO ━━");
   d.entries.forEach(e => lines.push(`[${e.ts}] ${e.text}`));
-  lines.push("", "— CPWhat's up");
+  lines.push("", "— Transcriação");
   return lines.join("\n");
 }
 
@@ -3439,7 +3551,7 @@ ${sum && sum.pontos.length ? `<h2>Pontos principais</h2><ul>${sum.pontos.map(p =
 ${sum && sum.acoes.length ? `<h2>O que fazer depois</h2><ul class="gold">${sum.acoes.map(a => `<li>${escHtml(a.texto)}${a.prazo ? `<br><span class="prazo">Prazo: ${escHtml(a.prazo)}</span>` : ""}</li>`).join("")}</ul>` : ""}
 <h2>Transcrição completa</h2>
 ${d.entries.map(e => `<div class="tr"><span class="tm">${e.ts}</span>${escHtml(e.text)}</div>`).join("")}
-<div class="ft">Gerado por CPWhat's up</div>
+<div class="ft">Gerado por Transcriação</div>
 </body></html>`;
 
   const w = window.open("", "_blank");
