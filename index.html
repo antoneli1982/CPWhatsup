@@ -650,6 +650,83 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 }
 .wsp-cancel:hover{background:rgba(255,77,106,.18)}
 
+/* Botão "Importar áudio" — aparece abaixo do botão de gravar quando idle */
+.import-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  margin-top:8px;width:100%;max-width:380px;
+}
+.import-divider{
+  display:flex;align-items:center;gap:12px;width:100%;
+  font-size:11.5px;font-weight:600;color:var(--textDim);
+  text-transform:uppercase;letter-spacing:.1em;
+}
+.import-divider::before,.import-divider::after{
+  content:"";flex:1;height:1px;background:var(--border);
+}
+.import-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;padding:14px 18px;border-radius:13px;
+  background:var(--surface);border:1.5px dashed var(--border);
+  color:var(--text);font-size:14.5px;font-weight:500;
+  transition:all .15s;
+}
+.import-btn:hover{
+  background:var(--surfaceHi);border-color:var(--blue);
+  border-style:solid;color:var(--blueBr);
+}
+.import-btn svg{width:19px;height:19px;color:var(--blueBr);flex-shrink:0}
+.import-btn small{
+  display:block;font-size:11.5px;font-weight:400;color:var(--textMid);
+  margin-top:2px;line-height:1.3;
+}
+.import-input{display:none}
+
+/* Overlay de progresso da transcrição do arquivo importado */
+.upl-overlay{
+  position:fixed;inset:0;z-index:100;background:rgba(10,18,32,.92);
+  display:none;align-items:center;justify-content:center;padding:24px;
+  backdrop-filter:blur(8px);
+}
+.upl-overlay.on{display:flex}
+.upl-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:18px;padding:28px 24px;max-width:440px;width:100%;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.upl-icon{
+  width:56px;height:56px;border-radius:14px;margin-bottom:18px;
+  background:linear-gradient(135deg,#4A9AE8,#2D6DB5);
+  display:flex;align-items:center;justify-content:center;color:white;
+  box-shadow:0 8px 24px rgba(74,154,232,.35);
+}
+.upl-icon svg{width:28px;height:28px;animation:uplSpin 2s linear infinite}
+@keyframes uplSpin{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+.upl-icon.done svg{animation:none}
+.upl-title{font-size:17px;font-weight:600;margin-bottom:6px}
+.upl-sub{font-size:13.5px;color:var(--textMid);line-height:1.5;margin-bottom:20px}
+.upl-bar{
+  height:8px;background:rgba(74,154,232,.15);border-radius:6px;overflow:hidden;margin-bottom:10px;
+}
+.upl-bar-fill{
+  height:100%;background:linear-gradient(90deg,#4A9AE8,#6BB5FF);
+  width:0%;transition:width .25s;border-radius:6px;
+}
+.upl-pct{font-size:12.5px;color:var(--textMid);font-variant-numeric:tabular-nums}
+.upl-file{
+  font-size:11.5px;color:var(--textDim);margin-top:8px;
+  font-family:ui-monospace,monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.upl-cancel{
+  margin-top:18px;width:100%;padding:11px;border-radius:10px;
+  background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);
+  color:var(--red);font-size:13.5px;font-weight:500;
+}
+.upl-cancel:hover{background:rgba(255,77,106,.18)}
+
 /* Indicador discreto durante gravação com Whisper */
 .wsp-indicator{
   display:inline-flex;align-items:center;gap:6px;
@@ -918,6 +995,21 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
     <div class="wsp-pct" id="wspPct">Iniciando…</div>
     <div class="wsp-files" id="wspFiles"></div>
     <button class="wsp-cancel" onclick="wspCancel()">Cancelar</button>
+  </div>
+</div>
+
+<!-- Overlay de progresso da transcrição de arquivo importado -->
+<div id="uplOverlay" class="upl-overlay">
+  <div class="upl-card">
+    <div class="upl-icon" id="uplIcon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    </div>
+    <div class="upl-title" id="uplTitle">Transcrevendo o arquivo</div>
+    <div class="upl-sub" id="uplSub">Isso pode demorar alguns minutos para áudios longos. Você pode ver o texto aparecendo aos poucos no fundo.</div>
+    <div class="upl-bar"><div class="upl-bar-fill" id="uplBarFill"></div></div>
+    <div class="upl-pct" id="uplPct">Iniciando…</div>
+    <div class="upl-file" id="uplFile"></div>
+    <button class="upl-cancel" id="uplCancelBtn" onclick="cancelUpload()">Cancelar</button>
   </div>
 </div>
 
@@ -1631,6 +1723,24 @@ async function whisperEnsureLoaded() {
 
 function onWhisperMessage(e) {
   const msg = e.data || {};
+
+  // ROTEAMENTO PARA UPLOAD: se a mensagem traz id começando com "upload_",
+  // chama o handler dedicado e ignora o fluxo padrão (que usa nowClock e o
+  // contador state._wsQueue da gravação ao vivo).
+  if (msg.payload && msg.payload.id && typeof msg.payload.id === "string"
+      && msg.payload.id.startsWith("upload_")
+      && state._uploadHandlers && state._uploadHandlers.has(msg.payload.id)) {
+    const id = msg.payload.id;
+    const handler = state._uploadHandlers.get(id);
+    state._uploadHandlers.delete(id);
+    if (msg.type === "result") {
+      handler({ ok: true, text: (msg.payload.text || "").trim() });
+    } else if (msg.type === "error") {
+      handler({ ok: false, text: "", error: msg.payload || "erro" });
+    }
+    return;
+  }
+
   if (msg.type === "progress") {
     wspUpdateProgress(msg.payload);
   } else if (msg.type === "loaded") {
@@ -1882,6 +1992,326 @@ function updateWhisperIndicator() {
     ind.classList.remove("processing");
     ind.innerHTML = '<span class="wsp-indicator-dot"></span> Ouvindo…';
   }
+}
+
+
+// ============================
+// UPLOAD DE ARQUIVO DE ÁUDIO
+// ============================
+// Permite importar um arquivo de áudio/vídeo e transcrevê-lo usando o mesmo
+// motor Whisper local que já é usado no modo "Online". O arquivo é decodificado
+// no navegador, convertido para PCM 16kHz mono e enviado em chunks de ~28s
+// para o worker do Whisper (limite recomendado do modelo é 30s por chunk).
+
+function fmtTimeFromSec(s) {
+  s = Math.floor(s);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+}
+
+function showUplOverlay(filename) {
+  $("uplFile").textContent = filename || "";
+  $("uplBarFill").style.width = "0%";
+  $("uplPct").textContent = "Iniciando…";
+  $("uplTitle").textContent = "Transcrevendo o arquivo";
+  $("uplSub").textContent = "Isso pode demorar alguns minutos para áudios longos. Você pode ver o texto aparecendo aos poucos no fundo.";
+  $("uplCancelBtn").classList.remove("hidden");
+  $("uplIcon").classList.remove("done");
+  $("uplOverlay").classList.add("on");
+}
+
+function hideUplOverlay() {
+  $("uplOverlay").classList.remove("on");
+}
+
+function updateUplProgress(done, total) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  $("uplBarFill").style.width = pct + "%";
+  $("uplPct").textContent = `Trecho ${done} de ${total}  (${pct}%)`;
+}
+
+function cancelUpload() {
+  state._uploadCancelled = true;
+  // Resolve com falha qualquer chunk pendente para liberar memória/promises
+  if (state._uploadHandlers) {
+    state._uploadHandlers.forEach((resolve) => {
+      try { resolve({ ok: false, text: "", error: "cancelled" }); } catch {}
+    });
+    state._uploadHandlers.clear();
+  }
+  hideUplOverlay();
+}
+
+// Transcreve um único chunk PCM via worker do Whisper.
+// Retorna uma Promise que resolve com {ok, text}.
+function transcribeUploadChunk(audioFloat32) {
+  return new Promise((resolve) => {
+    if (!state._wsWorker || !state._wsReady) {
+      resolve({ ok: false, text: "", error: "modelo não carregado" });
+      return;
+    }
+    const id = "upload_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+    state._uploadHandlers = state._uploadHandlers || new Map();
+    state._uploadHandlers.set(id, resolve);
+
+    // Timeout de segurança — 5min por chunk de 28s já é absurdo
+    setTimeout(() => {
+      if (state._uploadHandlers && state._uploadHandlers.has(id)) {
+        state._uploadHandlers.delete(id);
+        resolve({ ok: false, text: "", error: "timeout" });
+      }
+    }, 5 * 60 * 1000);
+
+    try {
+      state._wsWorker.postMessage({
+        type: "transcribe",
+        payload: {
+          audio: audioFloat32,
+          language: whisperLangCode(),
+          id,
+        }
+      }, [audioFloat32.buffer]);
+    } catch (err) {
+      state._uploadHandlers.delete(id);
+      resolve({ ok: false, text: "", error: String(err) });
+    }
+  });
+}
+
+// Decodifica o arquivo (qualquer formato suportado pelo navegador), converte
+// para mono e devolve um Float32Array em 16kHz pronto pro Whisper.
+async function decodeAudioFileTo16kMono(file) {
+  const arrayBuf = await file.arrayBuffer();
+
+  // Tenta criar AudioContext já em 16kHz (alguns navegadores ignoram, então
+  // fazemos resample manual depois caso necessário).
+  let ctx;
+  try {
+    ctx = new (window.AudioContext || window.OfflineAudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  } catch {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  let audioBuf;
+  try {
+    audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+  } catch (err) {
+    try { ctx.close(); } catch {}
+    throw new Error("Formato não suportado pelo navegador. Tente MP3, WAV, M4A, OGG ou WebM.");
+  }
+  const sourceRate = audioBuf.sampleRate;
+
+  // Mistura canais para mono
+  let mono;
+  if (audioBuf.numberOfChannels === 1) {
+    mono = audioBuf.getChannelData(0);
+    // copia para não compartilhar memória com o AudioBuffer (que vamos liberar)
+    mono = new Float32Array(mono);
+  } else {
+    const ch0 = audioBuf.getChannelData(0);
+    const ch1 = audioBuf.getChannelData(1);
+    mono = new Float32Array(ch0.length);
+    for (let i = 0; i < ch0.length; i++) {
+      mono[i] = (ch0[i] + ch1[i]) * 0.5;
+    }
+  }
+
+  try { ctx.close(); } catch {}
+
+  // Resample para 16kHz se necessário
+  if (Math.abs(sourceRate - 16000) > 1) {
+    mono = downsampleTo16k(mono, sourceRate);
+  }
+
+  return mono;
+}
+
+// Handler do <input type="file">
+async function handleAudioFileUpload(event) {
+  const file = event.target && event.target.files && event.target.files[0];
+  // Reset do input pra permitir reimportar o mesmo arquivo depois
+  if (event.target) event.target.value = "";
+  if (!file) return;
+
+  // Não permite importar enquanto há uma gravação ao vivo em andamento
+  if (state.rec || state.paused) {
+    showError("Pause ou finalize a gravação atual antes de importar um arquivo.");
+    return;
+  }
+
+  // Validação básica
+  const okType = file.type && (file.type.startsWith("audio/") || file.type.startsWith("video/"));
+  const okExt = /\.(mp3|wav|m4a|ogg|webm|mp4|mov|aac|flac|opus|3gp|amr|wma|aiff?)$/i.test(file.name);
+  if (!okType && !okExt) {
+    showError("Selecione um arquivo de áudio ou vídeo válido (MP3, WAV, M4A, OGG, WebM, MP4, etc.).");
+    return;
+  }
+
+  // Limite de tamanho (200MB) — Whisper-base é bem rápido em chunks pequenos,
+  // mas decodificar arquivos enormes pode estourar a memória do navegador.
+  const MAX_MB = 200;
+  if (file.size > MAX_MB * 1024 * 1024) {
+    showError(`Arquivo muito grande (${(file.size/1024/1024).toFixed(1)} MB). Limite: ${MAX_MB} MB. Tente comprimir ou cortar antes.`);
+    return;
+  }
+
+  // Auto-preenche o nome da sessão se estiver vazio (sem extensão)
+  const nameInp = $("sessionName");
+  if (!nameInp.value.trim()) {
+    nameInp.value = file.name.replace(/\.[^.]+$/, "").slice(0, 80);
+  }
+
+  // Limpa qualquer estado anterior
+  state.entries = [];
+  state.interim = "";
+  state.elapsed = 0;
+  state.pausedElapsed = 0;
+  state.lastSummary = null;
+  state._audioBlob = null;
+  state._lastAudioBlob = null;
+  state._uploadCancelled = false;
+  _lastRenderedCount = 0;
+  _lastInterim = "";
+  $("actions").classList.add("hidden");
+  $("moreExports").classList.add("hidden");
+  $("finishPanel").classList.add("hidden");
+  $("errorBar").classList.add("hidden");
+  renderTranscript();
+
+  // 1) Garante o modelo Whisper carregado (mostra overlay de download na 1ª vez)
+  let modelOk = false;
+  try {
+    modelOk = await whisperEnsureLoaded();
+  } catch (err) {
+    showError("Não consegui preparar a transcrição: " + (err && err.message || err));
+    return;
+  }
+  if (!modelOk) {
+    // Usuário cancelou o download ou falhou
+    return;
+  }
+
+  // 2) Mostra overlay de progresso da transcrição
+  showUplOverlay(file.name);
+  $("uplPct").textContent = "Lendo o arquivo…";
+
+  // 3) Decodifica o arquivo
+  let pcm;
+  try {
+    pcm = await decodeAudioFileTo16kMono(file);
+  } catch (err) {
+    hideUplOverlay();
+    showError(err.message || "Não consegui ler esse arquivo. Tente converter para MP3 ou WAV.");
+    return;
+  }
+
+  if (state._uploadCancelled) return;
+
+  // Duração total em segundos (será o "tempo" da gravação)
+  const totalSec = pcm.length / 16000;
+  state.elapsed = Math.floor(totalSec);
+
+  // 4) Quebra em chunks de ~28s (Whisper-base aceita até 30s por inferência).
+  // Sobreposição pequena de 0.5s para evitar cortar palavras na fronteira —
+  // o efeito prático é mínimo na transcrição final mas reduz palavras "comidas".
+  const CHUNK_SEC = 28;
+  const CHUNK_SAMPLES = 16000 * CHUNK_SEC;
+  const STEP_SAMPLES = CHUNK_SAMPLES; // sem overlap, mais simples e rápido
+  const totalChunks = Math.max(1, Math.ceil(pcm.length / STEP_SAMPLES));
+
+  $("uplPct").textContent = `Trecho 0 de ${totalChunks}  (0%)`;
+
+  let appendedAny = false;
+
+  for (let i = 0; i < totalChunks; i++) {
+    if (state._uploadCancelled) {
+      hideUplOverlay();
+      return;
+    }
+
+    const start = i * STEP_SAMPLES;
+    const end = Math.min(start + CHUNK_SAMPLES, pcm.length);
+    if (end - start < 16000 * 0.5) {
+      // Trecho residual muito curto (<0.5s), ignora pra não dar resultado ruim
+      updateUplProgress(i + 1, totalChunks);
+      continue;
+    }
+
+    // Cria uma cópia do trecho — precisamos passar buffer transferível
+    const chunk = pcm.slice(start, end);
+    const ts = fmtTimeFromSec(start / 16000);
+
+    const result = await transcribeUploadChunk(chunk);
+    if (state._uploadCancelled) {
+      hideUplOverlay();
+      return;
+    }
+
+    if (result && result.ok) {
+      const raw = (result.text || "").trim();
+      if (raw && !isNoiseText(raw)) {
+        const corrected = applyContextCorrection(raw);
+        state.entries.push({ text: corrected, ts });
+        appendedAny = true;
+        renderTranscript();
+      }
+    } else if (result && result.error) {
+      console.warn(`[upload chunk ${i}]`, result.error);
+    }
+
+    updateUplProgress(i + 1, totalChunks);
+  }
+
+  hideUplOverlay();
+
+  // 5) Se a opção "salvar áudio" está ligada, mantém o arquivo original em
+  // memória para que o botão "Baixar áudio" funcione.
+  if (state.saveAudio) {
+    state._audioBlob = file;
+  }
+
+  // 6) Finaliza igual ao final de uma gravação normal
+  if (!appendedAny) {
+    showError("Não consegui extrair texto desse áudio. Verifique se ele tem fala audível e tente novamente.");
+    return;
+  }
+
+  // Salva sessão usando a infra existente
+  saveCurrentSessionFromUpload(file);
+
+  // Mostra painel de finalização e ações
+  $("finishPanel").classList.remove("hidden");
+  $("actions").classList.remove("hidden");
+  $("moreExports").classList.remove("hidden");
+  updateRecUI();
+  renderTranscript();
+  setTimeout(() => {
+    const panel = $("finishPanel");
+    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 120);
+}
+
+// Salva a sessão importada (sem passar pelo MediaRecorder, já que não houve gravação)
+function saveCurrentSessionFromUpload(file) {
+  const name = $("sessionName").value.trim() || `Importado ${fmtDate(Date.now())}`;
+  const session = {
+    id: Date.now(),
+    name,
+    date: new Date().toISOString(),
+    duration: fmtTime(state.elapsed),
+    durationSec: state.elapsed,
+    entries: [...state.entries],
+    speakers: [],
+    hasAudio: !!state._audioBlob,
+    _imported: true,
+    _sourceFile: file ? file.name : null,
+  };
+  state.lastSessionData = session;
+  state._lastAudioBlob = state._audioBlob;
+  state.saved = [session, ...state.saved].slice(0, 20);
+  persist();
+  renderHistory();
 }
 
 
@@ -2523,13 +2953,26 @@ function updateRecUI() {
       </div>
     `;
   } else {
-    // PARADO (estado inicial ou após finalizar) — botão redondo "Gravar"
+    // PARADO (estado inicial ou após finalizar) — botão redondo "Gravar" + opção de importar
     wrap.innerHTML = `
       <button class="rec-btn" onclick="startRec()" aria-label="${has ? 'Gravar de novo' : 'Gravar'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>
         <span>${has ? 'Gravar de novo' : 'Gravar'}</span>
       </button>
       <div class="rec-status">${has ? '<strong>Gravação finalizada.</strong> Resumo e transcrição abaixo.' : 'Clique no botão para começar'}</div>
+      ${has ? '' : `
+        <div class="import-wrap">
+          <div class="import-divider"><span>ou</span></div>
+          <button class="import-btn" onclick="document.getElementById('audioFileInput').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="text-align:left">
+              <div>Importar áudio para transcrever</div>
+              <small>MP3, WAV, M4A, OGG, WebM ou vídeo</small>
+            </div>
+          </button>
+          <input type="file" id="audioFileInput" class="import-input" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.webm,.mp4,.mov,.aac,.flac,.opus" onchange="handleAudioFileUpload(event)"/>
+        </div>
+      `}
     `;
   }
 }
