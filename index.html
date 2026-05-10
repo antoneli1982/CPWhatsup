@@ -477,6 +477,47 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   text-align:center;padding:28px 20px;color:var(--textMid);font-size:13.5px;line-height:1.55;
 }
 
+/* Toast de aviso de download (limite de 2 por sessão) */
+.dl-toast{
+  position:fixed;left:50%;bottom:24px;
+  transform:translateX(-50%) translateY(40px);
+  background:linear-gradient(135deg,rgba(34,211,238,.18),rgba(74,154,232,.22));
+  border:1px solid rgba(34,211,238,.5);
+  border-radius:12px;padding:14px 18px;
+  display:flex;align-items:center;gap:12px;
+  font-family:var(--font-body);font-size:13px;color:var(--text);
+  max-width:90vw;min-width:280px;
+  box-shadow:0 12px 36px rgba(0,0,0,.5),0 0 24px rgba(34,211,238,.15);
+  backdrop-filter:blur(10px);
+  z-index:200;opacity:0;
+  transition:opacity .25s ease,transform .25s ease;
+}
+.dl-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.dl-toast svg{width:20px;height:20px;flex-shrink:0;color:var(--cyanBr)}
+.dl-toast strong{color:var(--cyanBr);font-weight:700}
+.dl-toast.warn{
+  background:linear-gradient(135deg,rgba(255,77,106,.16),rgba(255,140,66,.18));
+  border-color:rgba(255,140,66,.5);
+  box-shadow:0 12px 36px rgba(0,0,0,.5),0 0 24px rgba(255,140,66,.18);
+}
+.dl-toast.warn svg{color:var(--orange)}
+.dl-toast.warn strong{color:var(--orange)}
+
+/* Badge de download count no card do histórico */
+.session-dl-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--font-mono);font-size:10px;font-weight:600;
+  padding:3px 8px;border-radius:8px;
+  background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3);
+  color:var(--cyanBr);letter-spacing:.06em;
+  margin-left:8px;flex-shrink:0;
+  text-transform:uppercase;
+}
+.session-dl-badge.warn{
+  background:rgba(255,140,66,.14);border-color:rgba(255,140,66,.4);
+  color:var(--orange);
+}
+
 /* Footer com assinatura do desenvolvedor */
 .app-footer{
   display:flex;align-items:center;justify-content:center;gap:10px;
@@ -2264,6 +2305,8 @@ function cancelUpload() {
     state._uploadHandlers.clear();
   }
   hideUplOverlay();
+  releaseWakeLock();
+  clearMediaSession();
 }
 
 // Transcreve um único chunk PCM via worker do Whisper.
@@ -2411,8 +2454,10 @@ async function handleAudioFileUpload(event) {
   }
   if (!modelOk) return;
 
-  // 2) Mostra overlay
+  // 2) Mostra overlay e ativa modo segundo plano
   showUplOverlay(file.name);
+  requestWakeLock();
+  setupMediaSession(($("sessionName").value.trim() || file.name) + " · transcrevendo", "playing");
 
   // 3) Estratégia híbrida priorizando QUALIDADE:
   //    - Arquivos até 500MB: tenta decodeAudioData (qualidade máxima, rápido)
@@ -2433,11 +2478,15 @@ async function handleAudioFileUpload(event) {
   } catch (err) {
     console.error("[upload]", err);
     hideUplOverlay();
+    releaseWakeLock();
+    clearMediaSession();
     showError(err && err.message ? err.message : "Erro durante a transcrição.");
     return;
   }
 
   hideUplOverlay();
+  releaseWakeLock();
+  clearMediaSession();
 
   if (state._uploadCancelled) return;
 
@@ -2469,7 +2518,7 @@ async function handleAudioFileUpload(event) {
 // ============================
 async function transcribeViaDecodeAll(file) {
   $("uplTitle").textContent = "Transcrevendo o arquivo";
-  $("uplSub").textContent = "Lendo o arquivo e processando os trechos. O texto aparece no fundo conforme avança.";
+  $("uplSub").textContent = "Pode minimizar o app — continua transcrevendo em segundo plano. O texto aparece aqui quando voltar.";
   $("uplPct").textContent = "Lendo o arquivo…";
 
   let pcm;
@@ -2530,7 +2579,7 @@ async function transcribeViaDecodeAll(file) {
 // tamanho — limitado apenas pela duração da reprodução acelerada.
 async function transcribeViaStreaming(file) {
   $("uplTitle").textContent = "Transcrevendo arquivo grande";
-  $("uplSub").textContent = "Modo streaming — qualidade idêntica ao normal, mas leva o tempo do áudio (real-time). O texto vai aparecendo no fundo conforme avança.";
+  $("uplSub").textContent = "Pode minimizar o app — segue transcrevendo em segundo plano. O texto aparece no fundo conforme avança.";
   $("uplPct").textContent = "Carregando o arquivo…";
   $("uplBarFill").style.width = "0%";
 
@@ -2737,6 +2786,7 @@ function saveCurrentSessionFromUpload(file) {
     entries: [...state.entries],
     speakers: [],
     hasAudio: !!state._audioBlob,
+    downloads: 0,
     _imported: true,
     _sourceFile: file ? file.name : null,
   };
@@ -2753,8 +2803,95 @@ function saveCurrentSessionFromUpload(file) {
 // - paused (rec=false, paused=true): botão "Continuar" (verde) + "Parar"
 // - finished: volta a idle e mostra ações
 
+// ============================
+// SEGUNDO PLANO NO CELULAR (Wake Lock + Media Session)
+// ============================
+// Em mobile, quando a tela trava ou o usuário troca de app, o navegador
+// suspende a aba pra economizar bateria. Isso para a gravação, o playback
+// do upload e os Web Workers. Para evitar isso usamos:
+//   1. Wake Lock API: mantém a tela acesa enquanto está rodando
+//   2. Media Session API: registra o app como player de mídia, o que faz
+//      o sistema operacional priorizar manter ele rodando
+//   3. visibilitychange: re-solicita o wake lock se foi liberado quando
+//      o usuário voltou pra aba
+
+let _wakeLock = null;
+let _wakeLockNeeded = false;  // se true, a gente re-pede ao voltar pra aba
+
+async function requestWakeLock() {
+  _wakeLockNeeded = true;
+  if (!('wakeLock' in navigator)) {
+    console.warn("[wakelock] API não disponível neste navegador");
+    return false;
+  }
+  if (_wakeLock) return true;  // já temos um ativo
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', () => {
+      // Sistema liberou (provavelmente porque a aba ficou invisível).
+      // Tentaremos re-pegar quando voltar a estar visível.
+      _wakeLock = null;
+    });
+    return true;
+  } catch (err) {
+    console.warn("[wakelock] não foi possível adquirir:", err);
+    return false;
+  }
+}
+
+async function releaseWakeLock() {
+  _wakeLockNeeded = false;
+  if (_wakeLock) {
+    try { await _wakeLock.release(); } catch {}
+    _wakeLock = null;
+  }
+}
+
+// Reativa wake lock quando aba volta a ser visível (se ainda for necessário)
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && _wakeLockNeeded && !_wakeLock) {
+    try {
+      _wakeLock = await navigator.wakeLock.request('screen');
+      _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+    } catch (e) { /* silencioso */ }
+  }
+});
+
+// Media Session API: registra como mídia ativa pro OS priorizar
+function setupMediaSession(title, state) {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: title || 'Transcriação',
+      artist: 'Captura de áudio em andamento',
+      album: 'Transcriação',
+      artwork: [
+        { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
+    });
+    navigator.mediaSession.playbackState = state || 'playing';
+    // Handlers vazios pra evitar que o OS pause inesperadamente
+    try { navigator.mediaSession.setActionHandler('play', () => {}); } catch {}
+    try { navigator.mediaSession.setActionHandler('pause', () => {}); } catch {}
+    try { navigator.mediaSession.setActionHandler('stop', () => {}); } catch {}
+  } catch (e) { /* silencioso */ }
+}
+
+function clearMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = null;
+    navigator.mediaSession.playbackState = 'none';
+  } catch (e) {}
+}
+
 async function startRec() {
   $("errorBar").classList.add("hidden");
+
+  // Pede ao SO pra manter a aba ativa mesmo com tela travada
+  requestWakeLock();
+  setupMediaSession($("sessionName").value.trim() || "Gravando", "playing");
 
   // Se resumindo uma pausa, usa state.pausedElapsed
   const isResume = state.paused;
@@ -2919,6 +3056,11 @@ function pauseRec() {
   state.paused = true;
   state.interim = "";
   state.pausedElapsed = state.elapsed;
+  // Pause não precisa mais do wake lock — pode liberar pra economizar bateria
+  releaseWakeLock();
+  if ('mediaSession' in navigator) {
+    try { navigator.mediaSession.playbackState = 'paused'; } catch {}
+  }
   updateRecUI();
   renderTranscript();
   updateWhisperIndicator();
@@ -2931,6 +3073,10 @@ function resumeRec() {
 
 function finishRec() {
   // Parar de vez — salva e mostra o painel com as opções (TXT/PDF/Resumo)
+  // Libera wake lock e media session
+  releaseWakeLock();
+  clearMediaSession();
+
   // Se ainda tem texto "interim" (frase em andamento), adiciona-o antes de parar
   if (state.interim && state.interim.trim()) {
     state.entries.push({ text: state.interim.trim(), ts: nowClock() });
@@ -2995,6 +3141,8 @@ function finishRec() {
 
 function hardStop() {
   // Usado em erro fatal — reseta tudo sem salvar, libera mic
+  releaseWakeLock();
+  clearMediaSession();
   if (state.recognition) {
     state.recognition.onend = null;
     try { state.recognition.stop(); } catch {}
@@ -3030,6 +3178,7 @@ function saveCurrentSession() {
       entries: [...state.entries],
       speakers: [...new Set(state.entries.map(e => e.speaker).filter(Boolean))],
       hasAudio: !!state._audioBlob,
+      downloads: 0,
     };
     state.lastSessionData = session;
     // Mantém o blob em memória pra download (não guardamos no localStorage — é grande)
@@ -3349,7 +3498,7 @@ function updateRecUI() {
         <span class="rec-dot-live"></span>
         <span class="rec-timer-num">${fmtTime(state.elapsed)}</span>
       </div>
-      <div class="rec-status">Capturando áudio · fale normalmente</div>
+      <div class="rec-status">Capturando áudio · pode minimizar o app</div>
       <div id="wspIndicator" class="wsp-indicator hidden"></div>
       <div class="rec-dual">
         <button class="rec-action pause" onclick="pauseRec()">
@@ -3488,17 +3637,24 @@ function renderHistory() {
     return;
   }
   c.textContent = `${state.saved.length} ${state.saved.length===1 ? "gravação" : "gravações"}`;
-  el.innerHTML = state.saved.map(s => `
+  el.innerHTML = state.saved.map(s => {
+    const dl = s.downloads || 0;
+    const remaining = DOWNLOAD_LIMIT - dl;
+    const badgeClass = remaining <= 1 ? "session-dl-badge warn" : "session-dl-badge";
+    const badge = dl > 0
+      ? `<span class="${badgeClass}" title="Restam ${remaining} download${remaining === 1 ? '' : 's'} antes da remoção automática">${dl}/${DOWNLOAD_LIMIT}</span>`
+      : "";
+    return `
     <div class="session">
       <div class="session-main" onclick="viewSession(${s.id})">
-        <div class="session-name">${escHtml(s.name)}</div>
+        <div class="session-name">${escHtml(s.name)}${badge}</div>
         <div class="session-meta">${fmtDate(s.date)} · ${s.duration} · ${wordCount(s.entries)} palavras</div>
       </div>
       <button class="session-del" onclick="deleteSession(${s.id})" aria-label="Excluir" title="Excluir esta gravação">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
       </button>
     </div>
-  `).join("");
+  `;}).join("");
 }
 
 function viewSession(id) {
@@ -3880,6 +4036,7 @@ ${d.entries.map(e => `<div class="tr"><span class="tm">${e.ts}</span>${escHtml(e
   w.document.write(html);
   w.document.close();
   setTimeout(() => w.print(), 500);
+  trackDownload("pdf");
 }
 
 // Download helper
@@ -3899,6 +4056,83 @@ function safeFileName(name) {
   return (name || "gravacao").replace(/[^a-zA-Z0-9áéíóúâêôãõç\s-_]/gi, "").replace(/\s+/g, "-").slice(0, 60);
 }
 
+// ============================
+// LIMITE DE DOWNLOADS POR SESSÃO
+// ============================
+// Cada gravação salva tem um contador de downloads. Quando atinge o limite,
+// é removida automaticamente do histórico para manter o armazenamento limpo.
+const DOWNLOAD_LIMIT = 2;
+
+function trackDownload(label) {
+  const d = state.lastSessionData;
+  if (!d || !d.id) return;
+
+  // Se a sessão é parcial (durante a gravação ao vivo), não conta
+  if (d._partial) return;
+
+  // Encontra a sessão no histórico
+  const idx = state.saved.findIndex(s => s.id === d.id);
+  if (idx < 0) return;  // sessão já foi removida ou não existe
+
+  // Incrementa contador
+  state.saved[idx].downloads = (state.saved[idx].downloads || 0) + 1;
+  d.downloads = state.saved[idx].downloads;
+  const now = state.saved[idx].downloads;
+  persist();
+
+  if (now >= DOWNLOAD_LIMIT) {
+    // Atingiu o limite — remove a sessão e mostra aviso
+    const removedName = state.saved[idx].name;
+    state.saved.splice(idx, 1);
+    persist();
+    renderHistory();
+    showRemovedToast(removedName);
+  } else {
+    // Ainda tem downloads disponíveis — mostra aviso discreto
+    const remaining = DOWNLOAD_LIMIT - now;
+    showDownloadHint(now, remaining);
+    renderHistory();
+  }
+}
+
+// Toast discreto quando ainda há downloads disponíveis
+function showDownloadHint(used, remaining) {
+  const existing = document.getElementById("dlToast");
+  if (existing) existing.remove();
+  const t = document.createElement("div");
+  t.id = "dlToast";
+  t.className = "dl-toast";
+  t.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span><strong>${used}/${DOWNLOAD_LIMIT} downloads</strong> · ${remaining === 1 ? "mais 1 e a gravação será removida" : `mais ${remaining} downloads disponíveis`}</span>
+  `;
+  document.body.appendChild(t);
+  setTimeout(() => { t.classList.add("show"); }, 10);
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, 3500);
+}
+
+// Toast vermelho quando a sessão foi removida
+function showRemovedToast(name) {
+  const existing = document.getElementById("dlToast");
+  if (existing) existing.remove();
+  const t = document.createElement("div");
+  t.id = "dlToast";
+  t.className = "dl-toast warn";
+  t.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+    <span><strong>Limite de ${DOWNLOAD_LIMIT} downloads atingido</strong><br><span style="opacity:.8;font-size:11px">"${escHtml(name).slice(0, 40)}" foi removida do histórico</span></span>
+  `;
+  document.body.appendChild(t);
+  setTimeout(() => { t.classList.add("show"); }, 10);
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, 4500);
+}
+
 function downloadTXT() {
   const d = state.lastSessionData;
   if (!d) return;
@@ -3910,12 +4144,14 @@ function downloadTXT() {
     ...d.entries.map(e => e.speaker ? `[${e.ts}] ${e.speaker}: ${e.text}` : `[${e.ts}] ${e.text}`),
   ];
   dlFile(lines.join("\n"), `${safeFileName(d.name)}.txt`, "text/plain;charset=utf-8");
+  trackDownload("txt");
 }
 
 function downloadJSON() {
   const d = state.lastSessionData;
   if (!d) return;
   dlFile(JSON.stringify(d, null, 2), `${safeFileName(d.name)}.json`, "application/json");
+  trackDownload("json");
 }
 
 function downloadSRT() {
@@ -3934,6 +4170,7 @@ function downloadSRT() {
     return `${i+1}\n${secFmt(start)} --> ${secFmt(end)}\n${e.speaker ? e.speaker + ": " : ""}${e.text}\n`;
   }).join("\n");
   dlFile(lines, `${safeFileName(d.name)}.srt`, "text/srt;charset=utf-8");
+  trackDownload("srt");
 }
 
 function downloadAudio() {
@@ -3943,6 +4180,7 @@ function downloadAudio() {
   }
   const d = state.lastSessionData;
   dlFile(state._lastAudioBlob, `${safeFileName(d?.name || "gravacao")}.webm`, "audio/webm");
+  trackDownload("audio");
 }
 
 function toggleMore() {
