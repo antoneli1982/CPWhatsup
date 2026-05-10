@@ -477,33 +477,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   text-align:center;padding:28px 20px;color:var(--textMid);font-size:13.5px;line-height:1.55;
 }
 
-/* Toast de aviso de download (limite de 2 por sessão) */
-.dl-toast{
-  position:fixed;left:50%;bottom:24px;
-  transform:translateX(-50%) translateY(40px);
-  background:linear-gradient(135deg,rgba(34,211,238,.18),rgba(74,154,232,.22));
-  border:1px solid rgba(34,211,238,.5);
-  border-radius:12px;padding:14px 18px;
-  display:flex;align-items:center;gap:12px;
-  font-family:var(--font-body);font-size:13px;color:var(--text);
-  max-width:90vw;min-width:280px;
-  box-shadow:0 12px 36px rgba(0,0,0,.5),0 0 24px rgba(34,211,238,.15);
-  backdrop-filter:blur(10px);
-  z-index:200;opacity:0;
-  transition:opacity .25s ease,transform .25s ease;
-}
-.dl-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.dl-toast svg{width:20px;height:20px;flex-shrink:0;color:var(--cyanBr)}
-.dl-toast strong{color:var(--cyanBr);font-weight:700}
-.dl-toast.warn{
-  background:linear-gradient(135deg,rgba(255,77,106,.16),rgba(255,140,66,.18));
-  border-color:rgba(255,140,66,.5);
-  box-shadow:0 12px 36px rgba(0,0,0,.5),0 0 24px rgba(255,140,66,.18);
-}
-.dl-toast.warn svg{color:var(--orange)}
-.dl-toast.warn strong{color:var(--orange)}
-
-/* Badge de download count no card do histórico */
+/* Badge informativo de quantos downloads foram feitos da gravação */
 .session-dl-badge{
   display:inline-flex;align-items:center;gap:5px;
   font-family:var(--font-mono);font-size:10px;font-weight:600;
@@ -513,10 +487,16 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   margin-left:8px;flex-shrink:0;
   text-transform:uppercase;
 }
-.session-dl-badge.warn{
-  background:rgba(255,140,66,.14);border-color:rgba(255,140,66,.4);
-  color:var(--orange);
+
+/* Indicador de armazenamento local no rodapé do histórico */
+.hist-storage-info{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  margin-top:14px;padding:10px;
+  font-family:var(--font-mono);font-size:10.5px;
+  color:var(--textDim);letter-spacing:.08em;text-transform:uppercase;
+  border-top:1px dashed var(--border);
 }
+.hist-storage-info svg{color:var(--cyan);opacity:.7}
 
 /* Footer com assinatura do desenvolvedor */
 .app-footer{
@@ -1177,6 +1157,21 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
     </label>
   </div>
 
+  <!-- Aviso sonoro ao finalizar -->
+  <div class="cfg-field">
+    <label class="cfg-check-row">
+      <input type="checkbox" id="notifySoundChk" onchange="saveConfig()" checked/>
+      <div>
+        <div class="cfg-check-title">Aviso sonoro ao finalizar</div>
+        <div class="cfg-check-sub">Toca um sinal e fala "Ei, sua transcrição está pronta!" quando terminar — útil quando o app está em segundo plano.</div>
+      </div>
+    </label>
+    <button class="action-btn" onclick="playFinishNotification()" style="margin-top:10px;width:100%;font-size:12px;padding:9px 12px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      Testar aviso
+    </button>
+  </div>
+
   <!-- Identificar vozes (Deepgram) -->
   <div class="cfg-section">
     <div class="cfg-section-title">Identificar vozes automaticamente <span class="cfg-tag">Avançado</span></div>
@@ -1493,6 +1488,7 @@ let state = {
   // Novos:
   audioSource: "mic",     // "mic" | "room"
   saveAudio: false,       // salvar .webm junto
+  notifySound: true,      // avisar com som+voz quando finalizar transcrição
   diarOn: false,          // diarização Deepgram
   dgKey: "",
   contextArea: "none",    // contexto/área da reunião (vocabulário técnico)
@@ -1550,11 +1546,13 @@ function loadConfig() {
       if (c.lang) $("langSel").value = c.lang;
       state.audioSource = c.audioSource || "mic";
       state.saveAudio = !!c.saveAudio;
+      state.notifySound = c.notifySound !== false;  // default: ligado
       state.diarOn = !!c.diarOn;
       state.dgKey = c.dgKey || "";
       state.contextArea = c.contextArea || "none";
       // UI
       $("saveAudioChk").checked = state.saveAudio;
+      if ($("notifySoundChk")) $("notifySoundChk").checked = state.notifySound;
       $("diarChk").checked = state.diarOn;
       $("dgKey").value = state.dgKey;
       if ($("ctxSel")) $("ctxSel").value = state.contextArea;
@@ -1565,6 +1563,7 @@ function loadConfig() {
 function saveConfig() {
   state.audioSource = state.audioSource || "mic";
   state.saveAudio = $("saveAudioChk").checked;
+  state.notifySound = $("notifySoundChk") ? $("notifySoundChk").checked : true;
   state.diarOn = $("diarChk").checked;
   state.dgKey = $("dgKey").value.trim();
   state.contextArea = ($("ctxSel") && $("ctxSel").value) || "none";
@@ -1575,6 +1574,7 @@ function saveConfig() {
       lang: $("langSel").value,
       audioSource: state.audioSource,
       saveAudio: state.saveAudio,
+      notifySound: state.notifySound,
       diarOn: state.diarOn,
       dgKey: state.dgKey,
       contextArea: state.contextArea,
@@ -2414,10 +2414,12 @@ async function handleAudioFileUpload(event) {
     return;
   }
 
-  // Limite generoso (1GB). Arquivos grandes usam modo streaming, então não estoura RAM.
-  const MAX_MB = 1024;
+  // Limite generoso (5GB). Arquivos grandes usam modo streaming, então não estoura RAM.
+  // O navegador transmite o arquivo sob demanda via blob URL — não carrega tudo em memória.
+  const MAX_MB = 5120;  // 5GB
   if (file.size > MAX_MB * 1024 * 1024) {
-    showError(`Arquivo muito grande (${(file.size/1024/1024).toFixed(1)} MB). Limite: ${MAX_MB} MB. Tente comprimir ou cortar antes.`);
+    const sizeGB = (file.size / 1024 / 1024 / 1024).toFixed(2);
+    showError(`Arquivo muito grande (${sizeGB} GB). Limite: 5 GB. Tente comprimir o vídeo antes (Handbrake, FFmpeg) ou extrair só o áudio.`);
     return;
   }
 
@@ -2459,13 +2461,13 @@ async function handleAudioFileUpload(event) {
   requestWakeLock();
   setupMediaSession(($("sessionName").value.trim() || file.name) + " · transcrevendo", "playing");
 
-  // 3) Estratégia híbrida priorizando QUALIDADE:
-  //    - Arquivos até 500MB: tenta decodeAudioData (qualidade máxima, rápido)
-  //    - Se falhar (memória) OU exceder 500MB: cai pra streaming em velocidade
-  //      real (playbackRate=1), qualidade IDÊNTICA ao caminho de decode.
-  //    Em ambos os modos a transcrição passa pelo mesmo Whisper, com o mesmo
-  //    tamanho de chunk e mesmo preprocessing — sem perda de qualidade.
-  const FORCE_STREAM_MB = 500;
+  // 3) Estratégia híbrida priorizando QUALIDADE e ESTABILIDADE:
+  //    - Arquivos até 200MB: tenta decodeAudioData (qualidade máxima, rápido)
+  //    - Acima de 200MB OU se decode falhar: cai pra streaming via MediaElement
+  //      em velocidade real, qualidade IDÊNTICA ao caminho de decode.
+  //    O streaming não carrega o arquivo em memória — o navegador transmite
+  //    sob demanda do disco/blob, então funciona com arquivos de muitos GB.
+  const FORCE_STREAM_MB = 200;
   const tryDecodeFirst = file.size <= FORCE_STREAM_MB * 1024 * 1024;
 
   let appendedAny = false;
@@ -2501,6 +2503,9 @@ async function handleAudioFileUpload(event) {
   }
 
   saveCurrentSessionFromUpload(file);
+
+  // 🔔 Notifica o usuário (ele pode estar em outra aba / com app minimizado)
+  playFinishNotification();
 
   $("finishPanel").classList.remove("hidden");
   $("actions").classList.remove("hidden");
@@ -2792,7 +2797,7 @@ function saveCurrentSessionFromUpload(file) {
   };
   state.lastSessionData = session;
   state._lastAudioBlob = state._audioBlob;
-  state.saved = [session, ...state.saved].slice(0, 20);
+  state.saved = [session, ...state.saved];
   persist();
   renderHistory();
 }
@@ -3122,6 +3127,8 @@ function finishRec() {
 
     if (state.entries.length > 0) {
       saveCurrentSession();
+      // 🔔 Notifica o usuário (especialmente útil se estiver em outra aba)
+      playFinishNotification();
       $("actions").classList.remove("hidden");
       $("moreExports").classList.remove("hidden");
       updateRecUI();
@@ -3183,7 +3190,7 @@ function saveCurrentSession() {
     state.lastSessionData = session;
     // Mantém o blob em memória pra download (não guardamos no localStorage — é grande)
     state._lastAudioBlob = state._audioBlob;
-    state.saved = [session, ...state.saved].slice(0, 20);
+    state.saved = [session, ...state.saved];
     persist();
     renderHistory();
   };
@@ -3549,7 +3556,7 @@ function updateRecUI() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <div style="text-align:left">
               <div>Importar áudio para transcrever</div>
-              <small>Áudio ou vídeo · até 1GB · qualidade idêntica</small>
+              <small>Áudio ou vídeo · até 5GB · qualidade idêntica</small>
             </div>
           </button>
           <input type="file" id="audioFileInput" class="import-input" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.webm,.mp4,.mov,.mkv,.avi,.aac,.flac,.opus,.3gp" onchange="handleAudioFileUpload(event)"/>
@@ -3633,16 +3640,22 @@ function renderHistory() {
   const c = $("histCount");
   if (!state.saved.length) {
     c.textContent = "";
-    el.innerHTML = `<div class="empty-state">Suas gravações vão aparecer aqui depois que você gravar.</div>`;
+    el.innerHTML = `<div class="empty-state">Suas gravações vão aparecer aqui depois que você gravar. Tudo fica salvo só neste aparelho.</div>`;
     return;
   }
   c.textContent = `${state.saved.length} ${state.saved.length===1 ? "gravação" : "gravações"}`;
+
+  // Calcula tamanho aproximado em KB do localStorage usado por gravações
+  let bytes = 0;
+  try { bytes = (localStorage.getItem("cpw_sessions") || "").length; } catch {}
+  const sizeStr = bytes > 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
   el.innerHTML = state.saved.map(s => {
     const dl = s.downloads || 0;
-    const remaining = DOWNLOAD_LIMIT - dl;
-    const badgeClass = remaining <= 1 ? "session-dl-badge warn" : "session-dl-badge";
     const badge = dl > 0
-      ? `<span class="${badgeClass}" title="Restam ${remaining} download${remaining === 1 ? '' : 's'} antes da remoção automática">${dl}/${DOWNLOAD_LIMIT}</span>`
+      ? `<span class="session-dl-badge" title="Esta gravação foi baixada ${dl} ${dl === 1 ? 'vez' : 'vezes'}">${dl} ↓</span>`
       : "";
     return `
     <div class="session">
@@ -3654,7 +3667,12 @@ function renderHistory() {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
       </button>
     </div>
-  `;}).join("");
+  `;}).join("") + `
+    <div class="hist-storage-info">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+      <span>Salvo neste aparelho · ${sizeStr} usados</span>
+    </div>
+  `;
 }
 
 function viewSession(id) {
@@ -4052,85 +4070,99 @@ function dlFile(content, filename, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// ============================
+// NOTIFICAÇÃO DE FINALIZAÇÃO
+// ============================
+// Avisa o usuário quando uma transcrição terminou — útil quando o app está
+// em segundo plano ou quando arquivos longos demoram pra processar.
+// Combina três camadas: vibração, beep curto e síntese de voz em pt-BR.
+function playFinishNotification(message) {
+  // Respeita a preferência do usuário
+  if (!state.notifySound) return;
+
+  const text = message || "Ei, sua transcrição está pronta!";
+
+  // 1. Vibração (mobile) — padrão de "atenção": curto-curto-longo
+  if (navigator.vibrate) {
+    try { navigator.vibrate([180, 80, 180, 80, 320]); } catch {}
+  }
+
+  // 2. Beep curto ascendente — chama atenção mesmo em ambiente barulhento
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;     // A5
+    gain.gain.value = 0;
+    gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    // Sobe pra E6 depois de 150ms (efeito "ding" agradável)
+    osc.frequency.exponentialRampToValueAtTime(1318, ctx.currentTime + 0.18);
+    // Fade out suave
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+    setTimeout(() => {
+      try { osc.stop(); ctx.close(); } catch {}
+    }, 500);
+  } catch (e) {}
+
+  // 3. Síntese de voz em português (espera o beep terminar)
+  setTimeout(() => {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      // Cancela qualquer fala anterior
+      window.speechSynthesis.cancel();
+
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'pt-BR';
+      utter.rate = 1.05;
+      utter.pitch = 1.0;
+      utter.volume = 1.0;
+
+      // Tenta usar voz brasileira (algumas plataformas têm várias instaladas)
+      const voices = window.speechSynthesis.getVoices();
+      const ptVoice = voices.find(v => v.lang === 'pt-BR')
+        || voices.find(v => v.lang && v.lang.startsWith('pt'));
+      if (ptVoice) utter.voice = ptVoice;
+
+      window.speechSynthesis.speak(utter);
+    } catch (e) {}
+  }, 550);
+}
+
+// Pré-carrega vozes (algumas plataformas só populam a lista após o primeiro getVoices)
+if ('speechSynthesis' in window) {
+  try { window.speechSynthesis.getVoices(); } catch {}
+  if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+    window.speechSynthesis.onvoiceschanged = () => { /* voices loaded */ };
+  }
+}
+
 function safeFileName(name) {
   return (name || "gravacao").replace(/[^a-zA-Z0-9áéíóúâêôãõç\s-_]/gi, "").replace(/\s+/g, "-").slice(0, 60);
 }
 
 // ============================
-// LIMITE DE DOWNLOADS POR SESSÃO
+// CONTADOR DE DOWNLOADS POR SESSÃO
 // ============================
-// Cada gravação salva tem um contador de downloads. Quando atinge o limite,
-// é removida automaticamente do histórico para manter o armazenamento limpo.
-const DOWNLOAD_LIMIT = 2;
-
+// Cada gravação salva tem um contador informativo de quantos downloads
+// foram feitos a partir dela. As gravações NUNCA são removidas
+// automaticamente — ficam salvas no dispositivo do usuário até ele
+// excluí-las manualmente pelo botão da lixeira.
 function trackDownload(label) {
   const d = state.lastSessionData;
   if (!d || !d.id) return;
+  if (d._partial) return;  // gravação parcial não conta
 
-  // Se a sessão é parcial (durante a gravação ao vivo), não conta
-  if (d._partial) return;
-
-  // Encontra a sessão no histórico
   const idx = state.saved.findIndex(s => s.id === d.id);
-  if (idx < 0) return;  // sessão já foi removida ou não existe
+  if (idx < 0) return;
 
-  // Incrementa contador
   state.saved[idx].downloads = (state.saved[idx].downloads || 0) + 1;
   d.downloads = state.saved[idx].downloads;
-  const now = state.saved[idx].downloads;
   persist();
-
-  if (now >= DOWNLOAD_LIMIT) {
-    // Atingiu o limite — remove a sessão e mostra aviso
-    const removedName = state.saved[idx].name;
-    state.saved.splice(idx, 1);
-    persist();
-    renderHistory();
-    showRemovedToast(removedName);
-  } else {
-    // Ainda tem downloads disponíveis — mostra aviso discreto
-    const remaining = DOWNLOAD_LIMIT - now;
-    showDownloadHint(now, remaining);
-    renderHistory();
-  }
-}
-
-// Toast discreto quando ainda há downloads disponíveis
-function showDownloadHint(used, remaining) {
-  const existing = document.getElementById("dlToast");
-  if (existing) existing.remove();
-  const t = document.createElement("div");
-  t.id = "dlToast";
-  t.className = "dl-toast";
-  t.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <span><strong>${used}/${DOWNLOAD_LIMIT} downloads</strong> · ${remaining === 1 ? "mais 1 e a gravação será removida" : `mais ${remaining} downloads disponíveis`}</span>
-  `;
-  document.body.appendChild(t);
-  setTimeout(() => { t.classList.add("show"); }, 10);
-  setTimeout(() => {
-    t.classList.remove("show");
-    setTimeout(() => t.remove(), 300);
-  }, 3500);
-}
-
-// Toast vermelho quando a sessão foi removida
-function showRemovedToast(name) {
-  const existing = document.getElementById("dlToast");
-  if (existing) existing.remove();
-  const t = document.createElement("div");
-  t.id = "dlToast";
-  t.className = "dl-toast warn";
-  t.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-    <span><strong>Limite de ${DOWNLOAD_LIMIT} downloads atingido</strong><br><span style="opacity:.8;font-size:11px">"${escHtml(name).slice(0, 40)}" foi removida do histórico</span></span>
-  `;
-  document.body.appendChild(t);
-  setTimeout(() => { t.classList.add("show"); }, 10);
-  setTimeout(() => {
-    t.classList.remove("show");
-    setTimeout(() => t.remove(), 300);
-  }, 4500);
+  renderHistory();
 }
 
 function downloadTXT() {
