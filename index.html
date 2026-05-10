@@ -57,6 +57,8 @@
   --blueBr:#6BB5FF;
   --cyan:#22D3EE;
   --cyanBr:#67E8F9;
+  --orange:#FF8C42;
+  --orangeBr:#FFB071;
   --red:#FF4D6A;
   --green:#2EBF8B;
   --gold:#E8BF3F;
@@ -473,6 +475,29 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .session-del:hover{background:rgba(255,77,106,.1);color:var(--red)}
 .empty-state{
   text-align:center;padding:28px 20px;color:var(--textMid);font-size:13.5px;line-height:1.55;
+}
+
+/* Footer com assinatura do desenvolvedor */
+.app-footer{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  margin-top:56px;padding:24px 16px 8px;
+  border-top:1px solid var(--border);
+  font-family:var(--font-mono);
+  font-size:10.5px;font-weight:500;
+  color:var(--textDim);letter-spacing:.1em;text-transform:uppercase;
+}
+.app-footer .app-footer-dot{
+  width:5px;height:5px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 6px rgba(34,211,238,.6);
+  animation:dotPulse 2.4s ease-in-out infinite;
+  flex-shrink:0;
+}
+.app-footer strong{
+  color:var(--orange);font-weight:700;letter-spacing:.08em;
+  text-shadow:0 0 10px rgba(255,140,66,.35);
+}
+@media(max-width:520px){
+  .app-footer{font-size:9.5px;letter-spacing:.06em;flex-wrap:wrap;text-align:center}
 }
 
 .modal-bg{
@@ -999,6 +1024,11 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 </div>
 <div id="history"></div>
 
+<footer class="app-footer">
+  <span class="app-footer-dot" aria-hidden="true"></span>
+  <span class="app-footer-text">Desenvolvido pelo <strong>Engº Ivan Carlos Antoneli</strong></span>
+</footer>
+
 </div>
 
 <div id="modal" class="modal-bg hidden" onclick="if(event.target===this)closeModal()">
@@ -1130,6 +1160,9 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 
   <div style="font-size:11.5px;color:var(--textDim);line-height:1.6;margin-top:40px;padding-top:20px;border-top:1px solid var(--border)">
     Transcriação funciona direto no seu navegador. As gravações ficam salvas só neste dispositivo. A identificação de vozes usa a Deepgram (opcional) e envia o áudio diretamente para lá — não passa por servidores nossos.
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--textDim)">
+      Desenvolvido por <strong style="color:var(--orange);font-weight:700;text-shadow:0 0 8px rgba(255,140,66,.3)">Engº Ivan Carlos Antoneli</strong>
+    </div>
   </div>
 </div>
 
