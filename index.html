@@ -2368,19 +2368,24 @@ async function decodeAudioFileTo16kMono(file) {
   }
   const sourceRate = audioBuf.sampleRate;
 
-  // Mistura canais para mono
+  // Mistura canais para mono (suporta qualquer número de canais: stereo, 5.1, etc.)
   let mono;
-  if (audioBuf.numberOfChannels === 1) {
+  const numCh = audioBuf.numberOfChannels;
+  if (numCh === 1) {
     mono = audioBuf.getChannelData(0);
     // copia para não compartilhar memória com o AudioBuffer (que vamos liberar)
     mono = new Float32Array(mono);
   } else {
-    const ch0 = audioBuf.getChannelData(0);
-    const ch1 = audioBuf.getChannelData(1);
-    mono = new Float32Array(ch0.length);
-    for (let i = 0; i < ch0.length; i++) {
-      mono[i] = (ch0[i] + ch1[i]) * 0.5;
+    const length = audioBuf.getChannelData(0).length;
+    mono = new Float32Array(length);
+    for (let ch = 0; ch < numCh; ch++) {
+      const chData = audioBuf.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        mono[i] += chData[i];
+      }
     }
+    const invCh = 1 / numCh;
+    for (let i = 0; i < length; i++) mono[i] *= invCh;
   }
 
   try { ctx.close(); } catch {}
@@ -2594,7 +2599,13 @@ async function transcribeViaStreaming(file) {
   const media = document.createElement(isVideo ? "video" : "audio");
   media.src = url;
   media.preload = "auto";
-  media.muted = false;  // áudio precisa fluir pro AudioContext (sai com gain=0)
+  // IMPORTANTE: muted=true é necessário pra não quebrar a autoplay policy.
+  // Após vários awaits (especialmente whisperEnsureLoaded) o browser perde o
+  // contexto de gesto do usuário. Com muted=false, media.play() é rejeitado
+  // com NotAllowedError no Safari/iOS e em Chrome quando a cadeia foi quebrada.
+  // O AudioContext captura o áudio via createMediaElementSource ANTES do estágio
+  // de mute/output — então muted=true NÃO impede a captura pelo AudioContext.
+  media.muted = true;
   // VELOCIDADE REAL: garante qualidade IDÊNTICA ao modo decode.
   // Acelerar (mesmo com preservesPitch) faz o Whisper errar mais palavras
   // porque chega mais conteúdo de fala por segundo do chunk.
@@ -2614,7 +2625,7 @@ async function transcribeViaStreaming(file) {
   // Espera metadata pra saber a duração
   await new Promise((resolve, reject) => {
     const onMeta = () => { cleanup(); resolve(); };
-    const onErr = () => { cleanup(); reject(new Error("Não consegui ler o arquivo. Tente outro formato (MP3, WAV, M4A).")); };
+    const onErr = () => { cleanup(); reject(new Error("Não consegui ler o arquivo. Verifique se o formato é suportado (MP4, MOV, WebM, MP3, WAV, M4A) e tente em outro navegador (Chrome/Edge).")); };
     const cleanup = () => {
       media.removeEventListener("loadedmetadata", onMeta);
       media.removeEventListener("error", onErr);
@@ -2732,6 +2743,11 @@ async function transcribeViaStreaming(file) {
     try { proc.disconnect(); source.disconnect(); gainSilent.disconnect(); ctx.close(); } catch {}
     if (media.parentNode) media.parentNode.removeChild(media);
     URL.revokeObjectURL(url);
+    // NotAllowedError acontece quando o browser bloqueou autoplay.
+    // Geralmente no Safari/iOS ou quando o usuário demorou muito antes de selecionar o arquivo.
+    if (err && (err.name === "NotAllowedError" || err.name === "NotSupportedError")) {
+      throw new Error("O navegador bloqueou a reprodução do arquivo. Tente recarregar a página e importar o vídeo novamente. No Safari, certifique-se de que a opção 'Reprodução automática' está habilitada para este site.");
+    }
     throw new Error("Não consegui iniciar a reprodução do arquivo. Tente em outro navegador (Chrome/Edge) ou converta para MP3/WAV.");
   }
 
