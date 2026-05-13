@@ -1930,6 +1930,7 @@ self.onmessage = async (e) => {
         language: msg.payload.language,
         task: 'transcribe',
         return_timestamps: false,
+        ...(msg.payload.initial_prompt ? { initial_prompt: msg.payload.initial_prompt } : {}),
       });
       const text = (out && out.text ? String(out.text) : '').trim();
       self.postMessage({ type: 'result', payload: { text, id: msg.payload.id } });
@@ -2029,7 +2030,7 @@ function onWhisperMessage(e) {
     }
   } else if (msg.type === "result") {
     state._wsQueue = Math.max(0, state._wsQueue - 1);
-    const rawText = (msg.payload && msg.payload.text || "").trim();
+    const rawText = collapseRepeats((msg.payload && msg.payload.text || "").trim());
     if (rawText && !isNoiseText(rawText)) {
       const text = applyContextCorrection(rawText);
       state.entries.push({ text, ts: nowClock() });
@@ -2045,12 +2046,61 @@ function isNoiseText(text) {
   const t = text.toLowerCase().replace(/[.,!?…\-\s]+/g, " ").trim();
   if (!t) return true;
   if (t.length < 2) return true;
+
+  // Detecta texto com repetição excessiva de palavras — bug clássico do
+  // Web Speech API e do Whisper em trechos com áudio ruim ou silêncio.
+  // Ex: "mil mil mil mil mil mil..." → descarta
+  const words = t.split(/\s+/);
+  if (words.length >= 6) {
+    const freq = {};
+    words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    const maxFreq = Math.max(...Object.values(freq));
+    if (maxFreq / words.length > 0.55) return true; // >55% mesma palavra = ruído
+  }
+  // Detecta ngrama dominante repetido 4+ vezes (ex: "de mil de mil de mil de mil...")
+  for (let n = 1; n <= 3; n++) {
+    if (words.length < n * 4) continue;
+    const pat = words.slice(0, n).join(" ");
+    let reps = 0;
+    for (let i = 0; i + n <= words.length; i += n) {
+      if (words.slice(i, i + n).join(" ") === pat) reps++;
+      else break;
+    }
+    if (reps >= 4) return true;
+  }
+
   const noise = [
     "legendado por", "legendas pela comunidade", "obrigado por assistir",
     "obrigada por assistir", "subtitles by", "thanks for watching",
     "amara org", "gracias por ver", "suscribete", "inscreva se no canal",
   ];
   return noise.some(n => t.includes(n));
+}
+
+// Colapsa repetições consecutivas de palavras/frases num texto.
+// Ex: "de mil mil mil mil mil" → "de mil"
+// Ex: "precisamos fazer precisamos fazer precisamos fazer" → "precisamos fazer"
+function collapseRepeats(text) {
+  if (!text) return text;
+  const words = text.trim().split(/\s+/);
+  if (words.length < 4) return text;
+
+  for (let n = 1; n <= Math.min(6, Math.floor(words.length / 3)); n++) {
+    const pat = words.slice(0, n).map(w => w.toLowerCase());
+    let i = n, reps = 1;
+    while (i + n <= words.length) {
+      const slice = words.slice(i, i + n).map(w => w.toLowerCase());
+      if (slice.every((w, j) => w === pat[j])) { reps++; i += n; }
+      else break;
+    }
+    if (reps >= 3) {
+      // Repetição encontrada: mantém só a 1ª ocorrência + o resto após as repetições
+      const rest = words.slice(i).join(" ");
+      const single = words.slice(0, n).join(" ");
+      return collapseRepeats(rest ? single + " " + rest : single);
+    }
+  }
+  return text;
 }
 
 function wspShowOverlay() {
@@ -2311,7 +2361,7 @@ function cancelUpload() {
 
 // Transcreve um único chunk PCM via worker do Whisper.
 // Retorna uma Promise que resolve com {ok, text}.
-function transcribeUploadChunk(audioFloat32) {
+function transcribeUploadChunk(audioFloat32, initialPrompt) {
   return new Promise((resolve) => {
     if (!state._wsWorker || !state._wsReady) {
       resolve({ ok: false, text: "", error: "modelo não carregado" });
@@ -2336,6 +2386,7 @@ function transcribeUploadChunk(audioFloat32) {
           audio: audioFloat32,
           language: whisperLangCode(),
           id,
+          initial_prompt: initialPrompt || null,
         }
       }, [audioFloat32.buffer]);
     } catch (err) {
@@ -2549,6 +2600,7 @@ async function transcribeViaDecodeAll(file) {
   $("uplPct").textContent = `Trecho 0 de ${totalChunks}  (0%)`;
 
   let appendedAny = false;
+  let _uploadContext = "";  // contexto acumulado pra manter coerência entre chunks
   for (let i = 0; i < totalChunks; i++) {
     if (state._uploadCancelled) return appendedAny;
 
@@ -2560,15 +2612,17 @@ async function transcribeViaDecodeAll(file) {
     }
     const chunk = pcm.slice(start, end);
     const ts = fmtTimeFromSec(start / 16000);
-    const result = await transcribeUploadChunk(chunk);
+    const result = await transcribeUploadChunk(chunk, _uploadContext || null);
     if (state._uploadCancelled) return appendedAny;
 
     if (result && result.ok) {
-      const raw = (result.text || "").trim();
+      const raw = collapseRepeats((result.text || "").trim());
       if (raw && !isNoiseText(raw)) {
         const corrected = applyContextCorrection(raw);
         state.entries.push({ text: corrected, ts });
         appendedAny = true;
+        // Acumula contexto: passa as últimas ~300 chars pro próximo chunk
+        _uploadContext = (_uploadContext + " " + corrected).trim().slice(-300);
         renderTranscript();
       }
     } else if (result && result.error) {
@@ -2667,6 +2721,7 @@ async function transcribeViaStreaming(file) {
   let chunkIndex = 0;
   let appendedAny = false;
   let firstSampleTime = null;
+  let _streamContext = "";  // contexto acumulado para manter coerência entre chunks
 
   // Fila sequencial — Whisper-worker é single-threaded, melhor um chunk por vez
   let transcribeChain = Promise.resolve();
@@ -2674,20 +2729,22 @@ async function transcribeViaStreaming(file) {
 
   function enqueueChunk(chunk, mediaTimeSec) {
     pendingCount++;
+    const ctxSnapshot = _streamContext;  // captura contexto no momento do enqueue
     transcribeChain = transcribeChain.then(async () => {
       if (state._uploadCancelled) {
         pendingCount--;
         return;
       }
       try {
-        const result = await transcribeUploadChunk(chunk);
+        const result = await transcribeUploadChunk(chunk, ctxSnapshot || null);
         if (state._uploadCancelled) return;
         if (result && result.ok) {
-          const raw = (result.text || "").trim();
+          const raw = collapseRepeats((result.text || "").trim());
           if (raw && !isNoiseText(raw)) {
             const corrected = applyContextCorrection(raw);
             state.entries.push({ text: corrected, ts: fmtTimeFromSec(mediaTimeSec) });
             appendedAny = true;
+            _streamContext = (_streamContext + " " + corrected).trim().slice(-300);
             renderTranscript();
           }
         }
@@ -3001,14 +3058,18 @@ async function startRec() {
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const txt = ev.results[i][0].transcript;
         if (ev.results[i].isFinal) {
-          const clean = applyContextCorrection(txt.trim());
-          if (clean) { state.entries.push({text:clean, ts:nowClock()}); renderTranscript(); }
+          const collapsed = collapseRepeats(txt.trim());
+          const clean = applyContextCorrection(collapsed);
+          if (clean && !isNoiseText(collapsed)) {
+            state.entries.push({text:clean, ts:nowClock()});
+            renderTranscript();
+          }
           state.interim = "";
         } else { interim += txt; }
       }
       if (interim) {
-        // No interim também aplicamos correção pra o usuário já ver os termos certos
-        state.interim = applyContextCorrection(interim);
+        // No interim também aplicamos correção e colapso de repetições
+        state.interim = applyContextCorrection(collapseRepeats(interim));
         renderTranscript();
       }
     };
